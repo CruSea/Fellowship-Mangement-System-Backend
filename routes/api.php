@@ -20,6 +20,7 @@ use App\Http\Controllers\RegisterController;
 //     return $request->user();
 // });
 // User Routes
+// try
 Route::group(['prefix' => 'user'], function() {
     Route::post('/', [
         'uses' => 'UserController@store'
