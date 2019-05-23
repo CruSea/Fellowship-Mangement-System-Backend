@@ -7,11 +7,10 @@ use Illuminate\Http\Request;
 class MessageController extends Controller
 {
     public function sentMessage() {
-        $request = request()->only('title', 'content', 'sender', 'reciever_phone');
+        $request = request()->only('title', 'content', 'reciever_phone');
         $rule = [
             'title' => 'required|string|max:255',
             'content' => 'required|string|max:500',
-            'sender' => 'required|string|max:255',
         ];
         $validator = Validator::make($request, $rule);
         if($validator->fails()) {
