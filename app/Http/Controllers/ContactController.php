@@ -7,7 +7,10 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use App\Contact;
 use App\Team;
+use App\User;
+use App\Fellowship;
 use Input;
+use JWTAuth;
 use Excel;
 use CsvValidator;
 
@@ -21,7 +24,11 @@ class ContactController extends Controller
     }
     public function addContact() {
         try{
-            $request = request()->only('firstname', 'lastname', 'phone', 'university');
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to add contacts"], 404);
+            }
+            $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
             $phone_rule = [
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
             ];
@@ -29,22 +36,32 @@ class ContactController extends Controller
             if($phone_validator->fails()) {
                 return response()->json(['message' => 'phone validation error' , 'error' => 'The phone is not valid'], 500);
             }
+            // check weather the phone exists before
+            $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
+            if($check_phone_existance) {
+                return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
+            }
             $rules = [
-                'firstname' => 'required|string|max:255',
-                'lastname' => 'required|string|max:255',
-                'university' => 'required|string|max:255'
+                'full_name' => 'required|string|max:255',
+                'gender' => 'required|string|max:255',
+                'acadamic_department' => 'string|max:255',
             ];
             $validator = Validator::make($request, $rules);
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
             }
             $contact = new Contact();
-            $contact->firstname = $request['firstname'];
-            $contact->lastname = $request['lastname'];
+            $contact->full_name = $request['full_name'];
+            $contact->gender = $request['gender'];
             $contact->phone = $request['phone'];
-            $contact->university = $request['university'];
+            $contact->acadamic_department = $request['acadamic_department'];
+            $contact->fellowship_id = $user->fellowship_id;
+
+            $fellowship = Fellowship::find($user->fellowship_id);
             if($contact->save()) {
-                return response()->json(['message' => 'contact added successfully', 'contact', $contact], 200);
+                $fellowship->number_of_members = $fellowship->number_of_members + 1;
+                $fellowship->update();
+                return response()->json(['message' => 'contact added successfully'], 200);
             }
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to save the contact'], 500);
         }catch(Exception $ex) {
@@ -61,8 +78,14 @@ class ContactController extends Controller
     }
     public function getContact($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
             if($contact = Contact::find($id)) {
-                return response()->json(['contact' => $contact], 200);
+                if(!$user) {
+                    return response()->json(['message' => 'authentication error', 'error' => "not authorized to add contacts"], 404);
+                }
+                $fellowship_id = $user->fellowship_id;
+                $fellowship = Fellowship::find($fellowship_id);
+                return response()->json(['contact' => $contact, 'fellowship', $fellowship], 200);
             }
             return response()->json(['message' => 'an error found', 'error' => 'contact is not found'], 404);
         } catch(Exception $ex) {
@@ -71,7 +94,7 @@ class ContactController extends Controller
     }
     public function updateContact($id) {
         try {
-            $request = request()->only('firstname', 'lastname', 'phone', 'university');
+            $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
             $contact = Contact::find($id);
             $phone_rule = [
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
@@ -80,20 +103,25 @@ class ContactController extends Controller
             if($phone_validator->fails()) {
                 return response()->json(['message' => 'phone validation error' , 'error' => 'The phone is not valid'], 500);
             }
+            // check weather the phone exists before
+            $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
+            if($check_phone_existance && $request['phone'] != $contact->phone) {
+                return response()->json(['error' => 'Ooops! this phone number is already in the database'], 500);
+            }
             $rules = [
-                'firstname' => 'required|string|max:255',
-                'lastname' => 'required|string|max:255',
-                'university' => 'required|string|max:255'
+                'full_name' => 'required|string|max:255',
+                'gender' => 'required|string|max:255',
+                'acadamic_department' => 'string|max:255',
             ];
             $validator = Validator::make($request, $rules);
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
             }
             if($contact instanceof Contact) {
-                $contact->firstname = isset($request['firstname']) ? $request['firstname'] : $contact->firstname;
-                $contact->lastname = isset($request['lastnam']) ? $request['lastname'] : $contact->lastname;
+                $contact->full_name = isset($request['full_name']) ? $request['full_name'] : $contact->full_name;
+                $contact->gender = isset($request['gender']) ? $request['gender'] : $contact->gender;
                 $contact->phone = isset($request['phone']) ? $request['phone'] : $contact->phone;
-                $contact->university = isset($request['university']) ? $request['university'] : $contact->university;
+                $contact->acadamic_department = isset($request['acadamic_department']) ? $request['acadamic_department'] : $contact->acadamic_department;
                 if($contact->update()) {
                     return response()->json(['message', 'contact updated seccessfully', 'contact' => $contact], 200);
                 } 
@@ -194,7 +222,11 @@ class ContactController extends Controller
     public function deleteContact($id) {
         try {
             if($contact = Contact::find($id)) {
+                $fellowship_id = $contact->fellowship_id;
+                $fellowship = Fellowship::find($fellowship_id);
                 if($contact->delete()) {
+                    $fellowship->number_of_members = $fellowship->number_of_members - 1;
+                    $fellowship->update();
                     return response()->json(['message' => 'contact deleted successfully'], 200);
                 }
                 return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to delete contact'], 500);

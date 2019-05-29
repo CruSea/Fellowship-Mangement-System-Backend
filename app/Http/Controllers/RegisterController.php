@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\User;
 use App\Role;
 use App\UserRole;
+use App\Fellowship;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -46,9 +47,10 @@ class RegisterController extends Controller
     protected function signup(Request $request) {
         try {
             $rules = [
-                'firstname' => 'required|string|max:255',
-                'lastname' => 'required|string|max:255',
-                'university' => 'required|string|max:255',
+                'full_name' => 'required|string|max:255',
+                'university_name' => 'required|string|max:255',
+                'university_city' => 'required|string|max:255',
+                'specific_place' => 'string|max:255'
             ];
             $validator = Validator::make($request->all(), $rules);
             if($validator->fails()) {
@@ -96,34 +98,34 @@ class RegisterController extends Controller
             // add automatically new user id in user_role table
             //$user_role = new UserRole();
             
+            $fellowship = new Fellowship();
+            $fellowship->university_name = $request->input('university_name');
+            $fellowship->university_city = $request->input('university_city');
+            $fellowship->specific_place = $request->input('specific_place');
+            $fellowship->number_of_members = 1;
+            $fellowship->number_of_groups = 0;
+            if($fellowship->save()) {
+                $user = new User();
+                $user->full_name = $request->input('full_name');
+                $user->phone = $request->input('phone');
+                 $user->email = $request->input('email');
+                $user->fellowship_id = $fellowship->id;
+                $user->password = bcrypt($request->input('password'));
+                $user->remember_token = str_random(10);
+                // $user->updated_at = new DateTime();
+                if($user->save()) {
+                    $user_role = Role::find(4);
+                    $user->attachRole($user_role);
+                    return response()->json(['message' => 'user registered successfully'], 201);
+                }
+                else {
+                    $fellowship->delete();
+                    return response()->json(['error' => 'something went wrong unable to register'], 500);
+                }
+            } else {
+                return response()->json(['error' => 'Ooops! something went wrong'], 500);
+            }
             
-            $user = new User();
-            $user->firstname = $request->input('firstname');
-            $user->lastname = $request->input('lastname');
-            $user->phone = $request->input('phone');
-            $user->university = $request->input('university');
-            //$user->status = false;
-           // $user->role_id = 4;
-            $user->email = $request->input('email');
-            $user->password = bcrypt($request->input('password'));
-            $user->remember_token = str_random(10);
-            // $user->updated_at = new DateTime();
-            if($user->save()) {
-                //$user_role = DB::table('roles')->where('id', '=', 4)->first();
-           $user_role = Role::find(4);
-           $user->attachRole($user_role);
-               // $user_role->user_id = $user->id;
-               // $user_role->role_id = 4;
-                //if($user_role->save()) {
-                    return response()->json(['message' => 'user registered successfully',
-                'user' => $user, 'user role' => $user_role], 201);
-                //} else {
-                  //  return response()->json(['error' => 'error saving the role'], 500);
-                //}
-            }
-            else {
-                return response()->json(['error' => 'something went wrong unable to register'], 500);
-            }
         } catch(Exception $ex) {
             return response()->json(['error' => $ex->getMessage()], 500);
         }

@@ -4,7 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
-class SentMessage extends Model
+class TeamMessage extends Model
 {
     //
 }

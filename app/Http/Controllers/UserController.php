@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\User;
 use App\Role;
 use App\UserRole;
+use App\Fellowship;
 use Auth;
 use Input;
 use JWTAuth;
@@ -25,16 +26,6 @@ class UserController extends Controller
     }
     public function store(Request $request) {
         try {
-            // check weather the email exists before
-            $check_email_existance = DB::table('users')->where('email', $request->input('email'))->exists();
-            if($check_email_existance) {
-                return response()->json(['error' => 'Ooops! this email is occupied'], 500);
-            }
-            // check weather the phone exists before
-            $check_phone_existance = DB::table('users')->where('phone', $request->input('phone'))->exists();
-            if($check_phone_existance) {
-                return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
-            }
             /*
             * email validation
             */
@@ -44,6 +35,26 @@ class UserController extends Controller
             $email_validation = Validator::make($request->all(), $email_rule);
             if($email_validation->fails()) {
                 return response()->json(['message' => 'email validation error', 'erorr' => 'The email is not valid'], 500);
+            }
+            /*
+            * phone validation
+            */
+            $phone_rule = [
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
+            ];
+            $phone_validation = Validator::make($request->all(), $phone_rule);
+            if($phone_validation->fails()) {
+                return response()->json(['message' => 'phone validation error', 'error' => 'the phone number is not valid'], 500);
+            }
+            // check weather the email exists before
+            $check_email_existance = DB::table('users')->where('email', $request->input('email'))->exists();
+            if($check_email_existance) {
+                return response()->json(['error' => 'Ooops! this email is occupied'], 500);
+            }
+            // check weather the phone exists before
+            $check_phone_existance = DB::table('users')->where('phone', $request->input('phone'))->exists();
+            if($check_phone_existance) {
+                return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
             }
 
             /*
@@ -56,52 +67,40 @@ class UserController extends Controller
             if($password_validation->fails()) {
                 return response()->json(['message' => 'password validation error', 'error' => 'the password is not valid (minimum password length is 6)'], 500);
             }
-
-            /*
-            * phone validation
-            */
-            $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
-            ];
-            $phone_validation = Validator::make($request->all(), $phone_rule);
-            if($phone_validation->fails()) {
-                return response()->json(['message' => 'phone validation error', 'error' => 'the phone number is not valid'], 500);
-            }
-            // first name, last name, and university validation
             $rules = [
-                'firstname' => 'required|string|max:255',
-                'lastname' => 'required|string|max:255',
-                'university' => 'required|string|max:255',
+                'full_name' => 'required|string|max:255',
             ];
             $validation = Validator::make($request->all(), $rules);
             if($validation->fails()) {
-                return response()->json(['error' => 'validation error'], 500);
+                return response()->json(['message' => 'validation error', 'error' => 'name is not valid'], 500);
             }
             // add automatically new user id in user_role table
             //$user_role = new UserRole();
+            $authenticatedUser = JWtAuth::parseToken()->toUser();
 
-            $user = new User();
-            $user->firstname = $request->input('firstname');
-            $user->lastname = $request->input('lastname');
-            $user->phone = $request->input('phone');
-            $user->university = $request->input('university');
-            //$user->role_id = 4;
-            $user->email = $request->input('email');
-            $user->password = bcrypt($request->input('password'));
-            $user->remember_token = str_random(10);
-            $user->updated_at = new DateTime();
+            $fellowship = Fellowship::find($authenticatedUser->fellowship_id);
+            $fellowship->number_of_members = $fellowship->number_of_members + 1;
 
-            if($user->save()) {
-                //$user_role = DB::table('roles')->where('id', '=', 4)->get();
-               $user_role = Role::find(4);
-               $user->attachRole($user_role);
-               return response()->json(['message' => 'user registered successfully',
-               'user' => $user, 'user role' => $user_role], 201);
-               // } else {
-                 //   return response()->json(['error' => 'error saving the role'], 500);
-                //}
-            }
-            else {
+            if($fellowship->update()) {
+                $user = new User();
+                $user->full_name = $request->input('full_name');
+                $user->phone = $request->input('phone');
+                $user->email = $request->input('email');
+                $user->fellowship_id = $authenticatedUser->fellowship_id;
+                $user->password = bcrypt($request->input('password'));
+                $user->remember_token = str_random(10);
+                // $user->updated_at = new DateTime();
+                if($user->save()) {
+                    $user_role = Role::find(4);
+                    $user->attachRole($user_role);
+                    return response()->json(['message' => 'user registered successfully'], 201);
+                }
+                else {
+                    $fellowship->number_of_members = $fellowship->number_of_members - 1;
+                    $fellowship->update();
+                    return response()->json(['error' => 'something went wrong unable to register'], 500);
+                }
+            } else {
                 return response()->json(['error' => 'Ooops! something went wrong'], 500);
             }
         } catch(Exception $e) {
@@ -115,7 +114,13 @@ class UserController extends Controller
             if(!$user instanceof User) {
                 return response()->json(['message' => 'user is not found', 'error' => 'the user you finding is not found', 404]);
             }
-            return response()->json(['user' => $user], 200);
+            $userRole = DB::table('role_user')->where('user_id', '=', $user->id)->first();
+            $role_id = $userRole->role_id;
+            $role = Role::find($role_id);
+
+            $fellowship_id = $user->fellowship_id;
+            $fellowship = Fellowship::find($fellowship_id);
+            return response()->json(['user' => $user, 'role' => $role, 'fellowship' => $fellowship], 200);
         } catch(Exception $ex) {
             return response()->json(['error' => $ex->getMessage()], $ex->getStatusCode());
         }
@@ -138,7 +143,7 @@ class UserController extends Controller
     public function updateUser() {
         try {
             $getUser = JWTAuth::parseToken()->toUser();
-            $request = request()->only('firstname', 'lastname', 'phone', 'university', 'email');
+            $request = request()->only('full_name', 'phone', 'email');
             // check weather the email exists before
             $check_email_existance = DB::table('users')->where('email', $request['email'])->exists();
             if($check_email_existance && $request['email'] != $getUser->email) {
@@ -170,9 +175,7 @@ class UserController extends Controller
                 return response()->json(['message' => 'email validation error', 'erorr' => 'The email is not valid'], 500);
             }
             $rule = [
-                'firstname' => 'required|string|max:255',
-                'lastname' => 'required|string|max:255',
-                'university' => 'required|string|max:255',
+                'full_name' => 'required|string|max:255',
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
@@ -181,14 +184,12 @@ class UserController extends Controller
             $oldUser = User::find($getUser->id);
             //$oldUser = User::find($id);
             
-            if($oldUser instanceof User) {              
-                $oldUser->firstname = isset($request['firstname']) ? $request['firstname'] : $oldUser->firstname;
-                $oldUser->lastname = isset($request['lastname']) ? $request['lastname'] : $oldUser->lastname;
+            if($oldUser instanceof User) {
+                $oldUser->full_name = isset($request['full_name']) ? $request['full_name'] : $oldUser->full_name;
                 $oldUser->phone = isset($request['phone']) ? $request['phone'] : $oldUser->phone;
-                $oldUser->university = isset($request['university']) ? $request['university'] : $oldUser->university;
                 $oldUser->email = isset($request['email']) ? $request['email'] : $oldUser->email;
                 if($oldUser->update()) {
-                    return response()->json(['message' => 'user updated successfully', 'user' => $oldUser], 200);
+                    return response()->json(['message' => 'user updated successfully'], 200);
                 }
                 else {
                     return response()->json(['error' => 'Ooops! something went wrong'], 500);
@@ -246,12 +247,18 @@ class UserController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'user is not found'], 404);
             }
+            $fellowship_id = $user->fellowship_id;
+            $getFellowship = Fellowship::find($fellowship_id);
+            
+
             // $getUser = JWTAuth::parseToken()->toUser();
             // check own delete
             // if($user == $getUser) {
             //     return response()->json(['error' => 'trying to delete yourself'], 404);
             // }
             if($user->delete()) {
+                $getFellowship->number_of_members = $getFellowship->number_of_members - 1;
+                $getFellowship->update();
                 return response()->json(['message' => 'user deleted successfully'], 200);
             }
             else {
@@ -313,13 +320,18 @@ class UserController extends Controller
         }
     }
     public function getUserRole($id) {
-        // $user = User::find($id);
-        // if(!$user) {
-        //     return response()->json(['message' => 'an error occurred', 'error' => 'specified user is not found'], 404);
-        // }
-        // $getUserRole = DB::table('role_user')->where('user_id', $id);
-        
-
+        try {
+            $user = User::find($id);
+            if(!$user) {
+                return response()->json(['message' => 'an error occurred', 'error' => 'specified user is not found'], 404);
+            }
+            $getUserRole = DB::table('role_user')->where('user_id', '=', $id)->first();
+            $role_id = $getUserRole->role_id;
+            $role = Role::find($role_id);
+            return response()->json(['user Role' => $role], 200);
+        }catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => $ex->getMessage], $ex->getStatusCode());
+        }
     }
     public function importExcel()
 	{
