@@ -17,7 +17,6 @@ class CreateTeamsTable extends Migration
         $table->increments('id');
         $table->string('name')->unique();
         $table->string('description')->nullable();
-        $table->string('number_of_contacts');
         $table->integer('fellowship_id')->unsigned()->nullable();
         $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
         $table->timestamps();

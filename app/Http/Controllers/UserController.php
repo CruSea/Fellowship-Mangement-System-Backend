@@ -77,30 +77,20 @@ class UserController extends Controller
             // add automatically new user id in user_role table
             //$user_role = new UserRole();
             $authenticatedUser = JWtAuth::parseToken()->toUser();
-
-            $fellowship = Fellowship::find($authenticatedUser->fellowship_id);
-            $fellowship->number_of_members = $fellowship->number_of_members + 1;
-
-            if($fellowship->update()) {
-                $user = new User();
-                $user->full_name = $request->input('full_name');
-                $user->phone = $request->input('phone');
-                $user->email = $request->input('email');
-                $user->fellowship_id = $authenticatedUser->fellowship_id;
-                $user->password = bcrypt($request->input('password'));
-                $user->remember_token = str_random(10);
-                // $user->updated_at = new DateTime();
-                if($user->save()) {
-                    $user_role = Role::find(4);
-                    $user->attachRole($user_role);
-                    return response()->json(['message' => 'user registered successfully'], 201);
-                }
-                else {
-                    $fellowship->number_of_members = $fellowship->number_of_members - 1;
-                    $fellowship->update();
-                    return response()->json(['error' => 'something went wrong unable to register'], 500);
-                }
-            } else {
+            $user = new User();
+            $user->full_name = $request->input('full_name');
+            $user->phone = $request->input('phone');
+            $user->email = $request->input('email');
+            $user->fellowship_id = $authenticatedUser->fellowship_id;
+            $user->password = bcrypt($request->input('password'));
+            $user->remember_token = str_random(10);
+            // $user->updated_at = new DateTime();
+            if($user->save()) {
+                $user_role = Role::find(4);
+                $user->attachRole($user_role);
+                return response()->json(['message' => 'user registered successfully'], 201);
+            }
+            else {
                 return response()->json(['error' => 'Ooops! something went wrong'], 500);
             }
         } catch(Exception $e) {
@@ -118,9 +108,7 @@ class UserController extends Controller
             $role_id = $userRole->role_id;
             $role = Role::find($role_id);
 
-            $fellowship_id = $user->fellowship_id;
-            $fellowship = Fellowship::find($fellowship_id);
-            return response()->json(['user' => $user, 'role' => $role, 'fellowship' => $fellowship], 200);
+            return response()->json(['user' => $user, 'role' => $role], 200);
         } catch(Exception $ex) {
             return response()->json(['error' => $ex->getMessage()], $ex->getStatusCode());
         }
@@ -247,8 +235,6 @@ class UserController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'user is not found'], 404);
             }
-            $fellowship_id = $user->fellowship_id;
-            $getFellowship = Fellowship::find($fellowship_id);
             
 
             // $getUser = JWTAuth::parseToken()->toUser();
@@ -257,8 +243,6 @@ class UserController extends Controller
             //     return response()->json(['error' => 'trying to delete yourself'], 404);
             // }
             if($user->delete()) {
-                $getFellowship->number_of_members = $getFellowship->number_of_members - 1;
-                $getFellowship->update();
                 return response()->json(['message' => 'user deleted successfully'], 200);
             }
             else {

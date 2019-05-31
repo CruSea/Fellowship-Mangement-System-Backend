@@ -18,8 +18,8 @@ class CreateFellowshipsTable extends Migration
             $table->string('university_name');
             $table->string('university_city');
             $table->string('specific_place')->nullable();
-            $table->integer('number_of_members');
-            $table->integer('number_of_groups');
+            // $table->integer('number_of_members');
+            // $table->integer('number_of_groups');
             $table->timestamps();
         });
     }

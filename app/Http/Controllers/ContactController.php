@@ -57,10 +57,7 @@ class ContactController extends Controller
             $contact->acadamic_department = $request['acadamic_department'];
             $contact->fellowship_id = $user->fellowship_id;
 
-            $fellowship = Fellowship::find($user->fellowship_id);
             if($contact->save()) {
-                $fellowship->number_of_members = $fellowship->number_of_members + 1;
-                $fellowship->update();
                 return response()->json(['message' => 'contact added successfully'], 200);
             }
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to save the contact'], 500);
@@ -71,6 +68,10 @@ class ContactController extends Controller
     public function getContacts() {
         try {
             $contacts = new Contact();
+            $countContact = DB::table('contacts')->count();
+            if($countContact == 0) {
+                return response()->json(['contact is not available'], 404);
+            }
             return response()->json(['contacts' => $contacts->paginate(10)], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex], 500);
@@ -83,9 +84,7 @@ class ContactController extends Controller
                 if(!$user) {
                     return response()->json(['message' => 'authentication error', 'error' => "not authorized to add contacts"], 404);
                 }
-                $fellowship_id = $user->fellowship_id;
-                $fellowship = Fellowship::find($fellowship_id);
-                return response()->json(['contact' => $contact, 'fellowship', $fellowship], 200);
+                return response()->json(['contact' => $contact], 200);
             }
             return response()->json(['message' => 'an error found', 'error' => 'contact is not found'], 404);
         } catch(Exception $ex) {
@@ -123,7 +122,7 @@ class ContactController extends Controller
                 $contact->phone = isset($request['phone']) ? $request['phone'] : $contact->phone;
                 $contact->acadamic_department = isset($request['acadamic_department']) ? $request['acadamic_department'] : $contact->acadamic_department;
                 if($contact->update()) {
-                    return response()->json(['message', 'contact updated seccessfully', 'contact' => $contact], 200);
+                    return response()->json(['message' => 'contact updated seccessfully'], 200);
                 } 
                 return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to update contact'], 500);
             }
@@ -222,11 +221,7 @@ class ContactController extends Controller
     public function deleteContact($id) {
         try {
             if($contact = Contact::find($id)) {
-                $fellowship_id = $contact->fellowship_id;
-                $fellowship = Fellowship::find($fellowship_id);
                 if($contact->delete()) {
-                    $fellowship->number_of_members = $fellowship->number_of_members - 1;
-                    $fellowship->update();
                     return response()->json(['message' => 'contact deleted successfully'], 200);
                 }
                 return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to delete contact'], 500);

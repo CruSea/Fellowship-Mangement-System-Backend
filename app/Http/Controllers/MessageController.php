@@ -3,12 +3,20 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use App\User;
+use App\TeamMessage;
+use App\Contact;
+use App\ContactTeam;
+use JWTAuth;
+use App\SentMessage;
 
 class MessageController extends Controller
 {
-    public function sentMessage() {
+    public function sendContactMessage() {
         try {
-            $request = request()->only('title', 'content', 'reciever_phone');
+            $request = request()->only('message', 'phone');
             $rule = [
                 'message' => 'required|string|max:10000',
             ];
@@ -28,11 +36,11 @@ class MessageController extends Controller
             if(!$user instanceof User) {
                 return response()->json(['error' => 'user is not found'], 404);
             }
-            $getUser = $user->firstname;
+            $getUser = $user->full_name;
             $status = 0;
-            $sentMessage = new sentMessage([
-                'message' => 'message',
-                'sent_to' => 'phone',
+            $sentMessage = new SentMessage([
+                'message' => $request['message'],
+                'sent_to' => $request['phone'],
                 'status' => $status,
                 'sent_by' => $getUser,
             ]);
@@ -42,6 +50,88 @@ class MessageController extends Controller
             return response()->json(['error' => '!Ooops something went wrong'], 500);
         } catch(Exception $ex) {
             return response()->json(['message' => '!Ooops something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function getContactMessage($id) {
+        try {
+            $getMessage = SentMessage::find($id);
+            if(!$getMessage) {
+                return response()->json(['message' => 'error found', 
+                'error' => 'message is not found'], 404);
+            }
+            return response()->json(['message' => $getMessage], 200);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 
+            'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function getContactsMessages() {
+        try{
+            $contactMessage = SentMessage::orderBy('id', 'DESC')->paginate(5);
+            $countMessages = DB::table('sent_messages')->count();
+            if($countMessages == 0) {
+                return response()->json(['message is not available'], 404);
+            }
+            return response()->json(['messages' => $contactMessage, 'count' => $countMessages], 200);
+        } catch(Exception $x) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function deleteContactMessage($id) {
+        try {
+            $sentMessage = SentMessage::find($id);
+            if(!$sentMessage) {
+                return response()->json(['error' => 'message is not available'], 404);
+            }
+            if($sentMessage->delete()) {
+                return response()->json(['message' => 'message deleted successfully'], 200);
+            }
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not deleted'], 500);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function sendGroupMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['message' => 'authentication error', 'error' => 'user is not authenticated'], 404);
+            }
+            $team_message = new TeamMessage();
+            $request = request()->only('message', 'team');
+            $rule = [
+                'message' => 'required|string|max:1000000',
+                'team' => 'required|string|max:250'
+            ];
+            $validator = Validator::make($request, $rule);
+            if($validator->fails()) {
+                return resposne()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+            }
+            $team = DB::table('teams')->where('name', '=', $request['team'])->first();
+            if(!$team) {
+                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
+            }
+            $status = 0;
+            $team_id = $team->id;
+            $team_message->message = $request['message'];
+            $team_message->team_id = $team_id;
+            $team_message->sent_by = $user->full_name;
+            $team_message->save();
+            $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
+            $team_id)->select('contact_id')->get())->get();
+            for($i = 0; $i < count($contacts); $i++) {
+                $contact = $contacts[$i];
+                $sent_message = new SentMessage([
+                    'message' => $request['message'],
+                    'sent_to' => $contact->phone,
+                    'sent_by' => $user->full_name,
+                    'status' => $status,
+                ]);
+                $sent_message->save();
+            }
+            return response()->json(['message' => 'message sent successfully'], 200);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
 

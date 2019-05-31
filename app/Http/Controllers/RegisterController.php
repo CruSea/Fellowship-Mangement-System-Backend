@@ -102,8 +102,6 @@ class RegisterController extends Controller
             $fellowship->university_name = $request->input('university_name');
             $fellowship->university_city = $request->input('university_city');
             $fellowship->specific_place = $request->input('specific_place');
-            $fellowship->number_of_members = 1;
-            $fellowship->number_of_groups = 0;
             if($fellowship->save()) {
                 $user = new User();
                 $user->full_name = $request->input('full_name');

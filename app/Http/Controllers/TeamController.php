@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use App\Team;
 use App\Contact;
 use App\ContactTeam;
+use App\Fellowship;
+use JWTAuth;
 
 class TeamController extends Controller
 {
@@ -20,6 +22,10 @@ class TeamController extends Controller
     }
     public function addTeam() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            
+            $team = new Team();
+            
             $request = request()->only('name', 'description');
             // check name duplication
             $name = DB::table('teams')->where('name', $request['name'])->exists();
@@ -34,9 +40,15 @@ class TeamController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => 'the values are not valid'], 500);
             }
-            $team = new Team();
+            if(!$user) {
+                return response()->json(['message' => 'authentication error', 'error' => 'user is not autorized to add a team'], 404);
+            }
+
+            $fellowship_id = $user->fellowship_id;
+            
             $team->name = $request['name'];
             $team->description = $request['description'];
+            $team->fellowship_id = $fellowship_id;
             if($team->save()) {
                 return response()->json(['message' => 'team added successfully'], 200);
             }
@@ -58,6 +70,10 @@ class TeamController extends Controller
     public function getTeams() {
         try {
             $teams = new Team();
+            $countTeam = DB::table('teams')->count();
+            if($countTeam == 0) {
+                return response()->json(['team is not available'], 404);
+            }
             return response()->json(['teams' => $teams->paginate(10)], 200);
         }catch(Exception $ex) {
             return repsonse()->josn(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
@@ -65,6 +81,10 @@ class TeamController extends Controller
     }
     public function updateTeam($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to update team'], 404);
+            }
             $request = request()->only('name', 'description');
             $team = Team::find($id);
             if(!$team) {
@@ -95,17 +115,17 @@ class TeamController extends Controller
         }
     }
     public function deleteTeam($id) {
-        // try {
-        //     if(!$team = Team::find($id)) {
-        //         return response()->json(['message' => 'error occurred', 'error' => 'team is not found'], 404);
-        //     }
-        //     if($team->delete()) {
-        //         return response()->json(['message' => 'team deleted successfully'], 200);
-        //     }
-        //     return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'team is not deleted'], 500);
-        // } catch(Exception $ex) {
-        //     return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-        // }
+        try {
+            if(!$team = Team::find($id)) {
+                return response()->json(['message' => 'error occurred', 'error' => 'team is not found'], 404);
+            }
+            if($team->delete()) {
+                return response()->json(['message' => 'team deleted successfully'], 200);
+            }
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'team is not deleted'], 500);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
     }
     public function assignMembers($name, $id) {
         try {
@@ -141,58 +161,27 @@ class TeamController extends Controller
         }
     }
     public function seeMembers($name) {
-        // try {
-        //     $team = DB::table('teams')->where('name', $name)->first();
-        //     if(!$team) { 
-        //         return response()->json(['message' => 'an error occurred', 'error' => 'team is not found', 'team' => $team], 500);
-        //     }
-        //     $teamId = $team->id;
-        //     $memebers = DB::table('contacts')->where('team_id', $teamId)->get();
-        //     $check_members_existance = DB::table('contacts')->where('team_id', $teamId)->first();
-        //     if($check_members_existance) {
-        //     return response()->json(['members' => $memebers], 200);
-        //     } 
-        //     return response()->json(['message' => 'members are not found in '. $name .' team'], 404);
-        // } catch(Exception $ex) {
-        //     return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-        // }
         try {
             $team = DB::table('teams')->where('name', $name)->first();
             if(!$team) { 
-                return response()->json(['message' => 'an error occurred', 'error' => 'team is not found', 'team' => $team], 500);
+                return response()->json(['message' => 'an error occurred', 'error' => 'team is not found'], 500);
             }
-            $contactTeam = new Contact();
-            $teamId = $team->id;
-            // $getTeam = $contactTeam->$teamId;
-            $contacts = DB::table('contact_teams')->where('team_id', $teamId)->get();
-            // $members = DB::table('contacts')->where('id', )->get();
-            return response()->json(['contacs' => $contacts], 200);
+            $team_id = $team->id;
+            $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
+            $team_id)->select('contact_id')->get())->get();
+            $count = $contacts->count();
+            if($count == 0) {
+                return response()->json(['message' => 'contact is not found'], 404);
+            }
+            if (!$contacts) {
+                return response()->json(['message' => 'something went wrong', 'error' => 'contact is not found'], 404);
+            }
+            return response()->json(['contacts' => $contacts], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-    public function updateMembers($name, $id) {
-        // try {
-        //     $contact = Contact::find($id);
-        //     if(!$contact) {
-        //         return response()->json(['message' => '404 error', 'error' => 'contact is not found'], 404);
-        //     }
-        //     $request = request()->only('name');
-        //     $rule = [
-        //         'name' => 'required|string|max:255',
-        //     ];
-        //     $team = DB::table('teams')->where('name', '=',  $request['name'])->first();
-        //     if(!$team) {
-        //         return response()->json(['message' => '404 error', 'error' => 'team is not found'], 404);
-        //     }
-        //     $contact->team_id = $team->id;
-        //     if($contact->update()) {
-        //         return response()->json(['message' => 'contact team updated to '. $request['name']. ' team'], 200);
-        //     }
-        //     return response()->json(['message' => 'unexpected error', 'error' => "contact's team doesn't updated"], 500);
-        // } catch(Exception $ex) {
-        //     return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-        // }
+    public function updateMember($name, $id) {
         try {
             $request = request()->only('team');
             $contact = Contact::find($id);
@@ -200,40 +189,58 @@ class TeamController extends Controller
                 return response()->json(['error' => 'contact is not found'], 404);
             }
             $rule = [
-                'team' => 'required',
+                'team' => 'required|string|max:255',
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => 'team is not valid'], 500);
             }
+            $getTeam = DB::table('teams')->where('name', '=' , $name)->first();
+           if(!$getTeam) {
+               return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
+           }
             $team = DB::table('teams')->where('name', '=', $request['team'])->first();
             if(!$team) {
                 return response()->json(['message' => '404 error', 'error' => 'team is not found'], 404);
             }
-            $contactTeam = new ContactTeam();
-            $team_id = DB::table('contact_teams')->where('contact_id', '=', $contact);
-            return response()->json(['contactTeam' => $team_id], 200);
+            $contact_team = DB::table('contact_teams')->where([['team_id', '=', $getTeam->id], ['contact_id', '=', $contact->id],])->first();
+            if(!$contact_team) {
+                return response()->json(['message' => 'error found', 'error' => 'contact is not in the team'], 404);
+            }
+            $get_contact_team = ContactTeam::find($contact_team->id);
+            $get_contact_team->team_id = $team->id;
+            if($get_contact_team->update()) {
+                return response()->json(['message' => 'contact updated to '. $team->name .' team successfully'], 200);
+           }
+            
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'contact is not updated'], 500);
 
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-     public function deleteMembers($name, $id) {
-        // try {
-        //     $contact = Contact::find($id);
-        //     if(!$contact) {
-        //         return response()->json(['message' => '404 error', 'error' => 'contact is not found'], 404);
-        //     }
-        //    // $team = DB::table('teams')->where('name', '=' , 'praer')->first();
-        //     // $contact->team_id = $team->id;
-        //     $contact->team_id = null;
-            
-        //     if($contact->update()) { 
-        //         return response()->json(['message' => 'contact deleted from the team successfully'], 200);
-        //     }
-        //     return response()->json(['message' => 'unexpected error', 'error' => "Ooops! team doesn't assigned seccessfully"], 500);
-        // }catch(Exception $ex) {
-        //     return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-        // }
+    public function deleteMember($name, $id) {
+        try {
+            $contact = Contact::find($id);
+            if(!$contact) {
+                return response()->json(['message' => '404 error', 'error' => 'contact is not found'], 404);
+            }
+           $team = DB::table('teams')->where('name', '=' , $name)->first();
+           if(!$team) {
+               return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
+           }
+           $is_contact_in_team = DB::table('contact_teams')->where([['team_id', '=', $team->id], ['contact_id', '=', $contact->id],])->first();
+           if(!$is_contact_in_team) {
+               return response()->json(['message' => 'error found', 'error' => 'contact is not found in the team'], 404);
+           }
+           $contact_team = DB::table('contact_teams')->where([['team_id', '=', $team->id], ['contact_id', '=', $contact->id],]);
+    
+           if($contact_team->delete()) {
+               return response()->json(['message' => 'contact deleted from the team successfully'], 200);
+           }
+           return response()->json(['message' => 'unexpected error', 'error' => "Ooops! contact doesn't deleted from the team successfully"], 500);
+        }catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
     }
 }

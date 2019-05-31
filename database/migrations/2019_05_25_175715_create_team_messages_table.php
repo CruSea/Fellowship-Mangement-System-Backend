@@ -16,8 +16,9 @@ class CreateTeamMessagesTable extends Migration
         Schema::create('team_messages', function (Blueprint $table) {
         $table->increments('id');
         $table->string('message');
-        $table->string('team_name');
-        $table->integer('sent_msg_count');
+        $table->integer('team_id')-> unsigned();
+        $table->foreign('team_id')->references('id')->on('teams')->onDelete('cascade');
+        $table->string('sent_by');
         $table->timestamps();
         });
     }

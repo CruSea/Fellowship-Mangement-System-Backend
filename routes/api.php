@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Auth;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\RegisterController;
+// use App\Http\Controllers\MessageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -109,10 +110,10 @@ Route::group(['prefix' => 'team'], function() {
             'uses' => 'TeamController@seeMembers',
         ]);
         Route::patch('/{id}', [
-            'uses' => 'TeamController@updateMembers',
+            'uses' => 'TeamController@updateMember',
         ]);
         Route::delete('/{id}', [
-            'uses' => 'TeamController@deleteMembers',
+            'uses' => 'TeamController@deleteMember',
         ]);
     });
 });
@@ -123,6 +124,18 @@ Route::get('/teams', [
 // Message Routes
 Route::group(['prefix' => 'message'], function(){
     Route::post('/', [
-        'uses' => 'MessageCotroller@sentMessage',
+        'uses' => 'MessageController@sendContactMessage',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'MessageController@getContactMessage',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'MessageController@deleteContactMessage',
     ]);
 });
+Route::post('group-message', [
+    'uses' => 'MessageController@sendGroupMessage'
+]);
+Route::get('messages', [
+    'uses' => 'MessageController@getContactsMessages',
+]);
