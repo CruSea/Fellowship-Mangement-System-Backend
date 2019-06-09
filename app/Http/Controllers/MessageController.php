@@ -16,9 +16,10 @@ class MessageController extends Controller
 {
     public function sendContactMessage() {
         try {
-            $request = request()->only('message', 'phone');
+            $request = request()->only('message', 'phone', 'port_name');
             $rule = [
                 'message' => 'required|string|max:10000',
+                'port_name' => 'required|string|max:255'
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
@@ -37,11 +38,15 @@ class MessageController extends Controller
                 return response()->json(['error' => 'user is not found'], 404);
             }
             $getUser = $user->full_name;
-            $status = 0;
+
+            $getSmsPortName = SmsPort::find($request['port_name']);
+            $getSmsPortId = $getSmsPortName->id;
             $sentMessage = new SentMessage([
                 'message' => $request['message'],
                 'sent_to' => $request['phone'],
-                'status' => $status,
+                'is_sent' => false,
+                'is_delivered' => false,
+                'sms_port_id' => $getSmsPortId,
                 'sent_by' => $getUser,
             ]);
             if($sentMessage->save()) {
@@ -98,10 +103,11 @@ class MessageController extends Controller
                 return response()->json(['message' => 'authentication error', 'error' => 'user is not authenticated'], 404);
             }
             $team_message = new TeamMessage();
-            $request = request()->only('message', 'team');
+            $request = request()->only('port_name', 'team', 'message');
             $rule = [
                 'message' => 'required|string|max:1000000',
-                'team' => 'required|string|max:250'
+                'team' => 'required|string|max:250',
+                'port_name' => 'required|string|max:250'
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
@@ -111,7 +117,10 @@ class MessageController extends Controller
             if(!$team) {
                 return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
             }
-            $status = 0;
+
+            $getSmsPortName = SmsPort::find($request['port_name']);
+            $getSmsPortId = $getSmsPortName->id;
+
             $team_id = $team->id;
             $team_message->message = $request['message'];
             $team_message->team_id = $team_id;
@@ -124,8 +133,10 @@ class MessageController extends Controller
                 $sent_message = new SentMessage([
                     'message' => $request['message'],
                     'sent_to' => $contact->phone,
+                    'is_sent' => false,
+                    'is_delivered' => false,
+                    'sms_port_id' => $getSmsPortId,
                     'sent_by' => $user->full_name,
-                    'status' => $status,
                 ]);
                 $sent_message->save();
             }

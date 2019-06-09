@@ -139,3 +139,7 @@ Route::post('group-message', [
 Route::get('messages', [
     'uses' => 'MessageController@getContactsMessages',
 ]);
+
+Route::post('sms-port', [
+    'uses' => 'NegaritController@storeSmsPort',
+]);

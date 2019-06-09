@@ -142,14 +142,25 @@ class TeamController extends Controller
             if(!$contactTeam) {
                 return response()->json(['error' => 'something went wrong'], 404);
             }
+            $team_id = $team->id;
+            $contact_id = $contact->id;
             // check contact existance in the team before
             $contactExists = DB::table('contact_teams')->where('contact_id', $contact->id)->first();
+            $contactDuplicationInOneTeam = DB::table('contact_teams')->where([
+                ['team_id', '=', $team_id],
+                ['contact_id', '=', $contact_id],
+            ])->get();
+
+            
             // is the user trying to add contact to another team
             // $antherTeam = DB::table('contact_teams')->where('team_id', $team->id)
             // if($contactExists) {
             // 
             //     return response()->json(['message' => 'contacte is already added'], 201);
             // }
+            if(count($contactDuplicationInOneTeam) > 0) {
+                return response()->json(['error' => 'duplication error', 'message' => 'contact is already add to '. $team->name .' team'], 403);
+            }
             $contactTeam->team_id = $team->id;
             $contactTeam->contact_id = $contact->id;
             if($contactTeam->save()) {
