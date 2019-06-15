@@ -30,7 +30,7 @@ class ContactController extends Controller
             }
             $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
             ];
             $phone_validator = Validator::make($request, $phone_rule);
             if($phone_validator->fails()) {
@@ -96,7 +96,7 @@ class ContactController extends Controller
             $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
             $contact = Contact::find($id);
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
             ];
             $phone_validator = Validator::make($request, $phone_rule);
             if($phone_validator->fails()) {

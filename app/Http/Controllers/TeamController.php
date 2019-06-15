@@ -150,14 +150,6 @@ class TeamController extends Controller
                 ['team_id', '=', $team_id],
                 ['contact_id', '=', $contact_id],
             ])->get();
-
-            
-            // is the user trying to add contact to another team
-            // $antherTeam = DB::table('contact_teams')->where('team_id', $team->id)
-            // if($contactExists) {
-            // 
-            //     return response()->json(['message' => 'contacte is already added'], 201);
-            // }
             if(count($contactDuplicationInOneTeam) > 0) {
                 return response()->json(['error' => 'duplication error', 'message' => 'contact is already add to '. $team->name .' team'], 403);
             }
@@ -171,6 +163,69 @@ class TeamController extends Controller
             return ersponse()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
+    public function addMember(Request $request, $name) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            $contactTeam = new ContactTeam();
+            $team = DB::table('teams')->where('name', '=', $name)->first();
+            if(!$team) {
+                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
+            }
+            if(!$user) {
+                return response()->json(['error' => 'user is not authenticated'], 500);
+            }
+            $phone_rule = [
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+            ];
+            $phone_validator = Validator::make($request->all(), $phone_rule);
+            if($phone_validator->fails()) {
+                return response()->json(['message' => 'phone validation error' , 'error' => 'The phone is not valid'], 500);
+            }
+            // check weather the phone exists before
+            $check_phone_existance = DB::table('contacts')->where('phone', $request->input('phone'))->exists();
+            if($check_phone_existance) {
+                return response()->json(['error' => 'Ooops! This phone number is already in the database'], 403);
+            }
+            $rules = [
+                'full_name' => 'required|string|max:255',
+                'gender' => 'required|string|max:255',
+                'acadamic_department' => 'string|max:255',
+            ];
+            $validator = Validator::make($request->all(), $rules);
+            if($validator->fails()) {
+                return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+            }
+            $contact = new Contact();
+            $contact->full_name = $request->input('full_name');
+            $contact->gender = $request->input('gender');
+            $contact->phone = $request->input('phone');
+            $contact->acadamic_department = $request->input('acadamic_department');
+            $contact->fellowship_id = $user->fellowship_id;
+
+            if($contact->save()) {
+                $team_id = $team->id;
+                $contact_id = $contact->id;
+                $contactExists = DB::table('contact_teams')->where('contact_id', $contact->id)->first();
+                $contactDuplicationInOneTeam = DB::table('contact_teams')->where([
+                    ['team_id', '=', $team_id],
+                    ['contact_id', '=', $contact_id],
+                ])->get();
+                if(count($contactDuplicationInOneTeam) > 0) {
+                    return response()->json(['error' => 'duplication error', 'message' => 'contact is already add to '. $team->name .' team'], 403);
+                }
+                $contactTeam->team_id = $team_id;
+                $contactTeam->contact_id = $contact_id;
+                if($contactTeam->save()) {
+                    return response()->json(['message' => 'contacte assigned team successfully'], 200);
+                }
+                $contact->delete();
+                return response()->json(['message' => 'an error occured', 'error' => "contact doesn't assigned a team, please try again"], 500);
+            }
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to save the contact, please try again'], 500);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong']);
+        }
+    }
     public function seeMembers($name) {
         try {
             $team = DB::table('teams')->where('name', $name)->first();
@@ -180,13 +235,14 @@ class TeamController extends Controller
             $team_id = $team->id;
             $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
             $team_id)->select('contact_id')->get())->get();
+            if (!$contacts) {
+                return response()->json(['message' => 'something went wrong', 'error' => 'contact is not found'], 404);
+            }
             $count = $contacts->count();
             if($count == 0) {
                 return response()->json(['message' => 'contact is not found'], 404);
             }
-            if (!$contacts) {
-                return response()->json(['message' => 'something went wrong', 'error' => 'contact is not found'], 404);
-            }
+            
             return response()->json(['contacts' => $contacts], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);

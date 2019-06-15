@@ -17,11 +17,12 @@ use App\Http\Controllers\RegisterController;
 |
 */
 
-// Route::middleware('auth:api')->get('/user', function (Request $request) {
-//     return $request->user();
-// });
-// User Routes
-// try
+Route::post('/signup', [
+    'uses' => 'RegisterController@signup']);
+
+Route::post('/signin', [
+    'uses' => 'LoginController@signin'
+]);
 Route::group(['prefix' => 'user'], function() {
     Route::post('/', [
         'uses' => 'UserController@store'
@@ -50,12 +51,6 @@ Route::group(['prefix' => 'user'], function() {
     ]);
     
 });
-Route::post('/signup', [
-    'uses' => 'RegisterController@signup']);
-
-Route::post('/signin', [
-    'uses' => 'LoginController@signin'
-]);
 Route::get('/users', [
     'uses' => 'UserController@getUsers']);
 // Route::post('/importUsers', [
@@ -117,6 +112,9 @@ Route::group(['prefix' => 'team'], function() {
         ]);
     });
 });
+Route::post('{name}/addMember', [
+    'uses' => 'TeamController@addMember',
+]);
 Route::get('/teams', [
     'uses' => 'TeamController@getTeams',
 ]);
@@ -140,6 +138,18 @@ Route::get('messages', [
     'uses' => 'MessageController@getContactsMessages',
 ]);
 
-Route::post('sms-port', [
-    'uses' => 'NegaritController@storeSmsPort',
+// sms-port routes
+Route::group(['prefix' => 'sms-port'], function () {
+    Route::post('/', [
+        'uses' => 'NegaritController@storeSmsPort',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'NegaritController@getSmsPort',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'NegaritController@updateSmsPort',
+    ]);
+});
+Route::get('/sms-ports', [
+    'uses' => 'NegaritController@getSmsPorts',
 ]);

@@ -11,14 +11,20 @@ use App\Contact;
 use App\ContactTeam;
 use JWTAuth;
 use App\SentMessage;
+use App\SmsPort;
+use App\Setting;
 
 class MessageController extends Controller
 {
+    protected $negarit_api_url;
+    public function __construct() {
+        $this->negarit_api_url = 'http://api.negarit.net/api/';
+    }
     public function sendContactMessage() {
         try {
-            $request = request()->only('message', 'phone', 'port_name');
+            $request = request()->only('message', 'sent_to', 'port_name');
             $rule = [
-                'message' => 'required|string|max:10000',
+                'message' => 'required|string|min:1',
                 'port_name' => 'required|string|max:255'
             ];
             $validator = Validator::make($request, $rule);
@@ -26,7 +32,7 @@ class MessageController extends Controller
                 return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
             }
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
+                'sent_to' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
             ];
             $phone_validator = Validator::make($request, $phone_rule);
             if($phone_validator->fails()) {
@@ -39,18 +45,55 @@ class MessageController extends Controller
             }
             $getUser = $user->full_name;
 
-            $getSmsPortName = SmsPort::find($request['port_name']);
+            // $getSmsPortName = SmsPort::find($request['port_name']);
+            $getSmsPortName = DB::table('sms_ports')->where('port_name', '=', $request['port_name'])->first();
+            if(!$getSmsPortName) {
+                return response()->json(['error' => 'sms port is not found'], 404);
+            }
             $getSmsPortId = $getSmsPortName->id;
             $sentMessage = new SentMessage([
                 'message' => $request['message'],
-                'sent_to' => $request['phone'],
+                'sent_to' => $request['sent_to'],
                 'is_sent' => false,
                 'is_delivered' => false,
                 'sms_port_id' => $getSmsPortId,
                 'sent_by' => $getUser,
             ]);
             if($sentMessage->save()) {
-                return response()->json(['info' => 'message sent seccessfully'], 200);
+                $getSmsPort = SmsPort::find($getSmsPortId);
+                if(!$getSmsPort) {
+                    return response()->json(['message' => 'error found', 'error' => 'sms port is not found'], 404);
+                }
+                $get_campaign_id = $getSmsPort->negarit_campaign_id;
+                $get_api_key = $getSmsPort->negarit_sms_port_id;
+                $get_message = $sentMessage->message;
+                $get_phone = $sentMessage->sent_to;
+                $get_sender = $sentMessage->sent_by;
+
+                // get api key from setting table
+                $setting = Setting::where('name', '=', 'API_KEY')->first();
+                if(!$setting) {
+                    return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
+                }
+                
+                // to send a post request (message) for Negarit API 
+                $message_send_request = array();
+                $message_send_request['API_KEY'] = $setting->value;
+                $message_send_request['message'] = $get_message;
+                $message_send_request['sent_to'] = $get_phone;
+                
+                $negarit_response = $this->sendPostRequest($this->negarit_api_url, 
+                        'api_request/sent_message?API_KEY?='.$setting->value, 
+                        json_encode($message_send_request));
+                $decoded_response = json_decode($negarit_response);
+                if($decoded_response) { 
+                    if(isset($decoded_response->status) && isset($decoded_response->sent_messages)) {
+                        $send_message = $decoded_response->sent_messages;
+                        return response()->json(['message' => 'message sent successfully',
+                        'sent message' => $send_message], 200);
+                    }
+                }
+                return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
             }
             return response()->json(['error' => '!Ooops something went wrong'], 500);
         } catch(Exception $ex) {
@@ -105,13 +148,13 @@ class MessageController extends Controller
             $team_message = new TeamMessage();
             $request = request()->only('port_name', 'team', 'message');
             $rule = [
-                'message' => 'required|string|max:1000000',
+                'message' => 'required|string|min:1',
                 'team' => 'required|string|max:250',
                 'port_name' => 'required|string|max:250'
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return resposne()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
             }
             $team = DB::table('teams')->where('name', '=', $request['team'])->first();
             if(!$team) {
@@ -132,15 +175,56 @@ class MessageController extends Controller
                 $contact = $contacts[$i];
                 $sent_message = new SentMessage([
                     'message' => $request['message'],
-                    'sent_to' => $contact->phone,
+                    'sent_to' => $contact->sent_to,
                     'is_sent' => false,
                     'is_delivered' => false,
                     'sms_port_id' => $getSmsPortId,
                     'sent_by' => $user->full_name,
                 ]);
                 $sent_message->save();
+
+                $setting = Setting::where('name', '=', 'API_KEY')->first();
+                if(!$setting) {
+                    return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
+                }
+
+                $negarti_message_request = array();
+                $negarti_message_request['API_KEY'] = $setting->value;
+                $negarti_message_request['message'] = $sent_message->message;
+                $negarti_message_request['sent_to'] = $send_message->sent_to;
+                $negarit_response = $this->sendPostRequest($this->negarit_api_url, 
+                        'api_request/sent_message?API_KEY='.$setting->value, json_encode($negarit_message));
+                $decode_response = json_encode($negarit_response);
+                if($decode_response) {
+                    if(isset($decode_response->status) && isset($decode_response->sent_messages)) {
+                        $send_message = $decode_response->sent_messages;
+                        return response()->json(['sent message' => $send_message], 200);
+                    }
+                    return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decode_response], 500);
+                } else {
+                    return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decode_response], 500);
+                }
             }
             return response()->json(['message' => 'message sent successfully'], 200);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function getNegaritRecievedMessage() {
+        try {
+            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            if($setting instanceof Setting) {
+                $API_KEY = $setting->value;
+                $negarit_response = $this->sendGetRequest($this->negarit_api_url,
+                    'api_request/received_messages?API_KEY='.$API_KEY);
+                $decode_negarit_response = json_decode($negarit_response);
+                if($decode_negarit_response) {
+                    // if(isset($decode_negarit_response)) ????????????????????????????????????????????????
+                    //**"""""""""""""""something to do here"""""""""*******************************/
+                }
+                return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decode_negarit_response], 500);
+            }
+            return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'],404);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

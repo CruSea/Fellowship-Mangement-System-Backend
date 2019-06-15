@@ -54,7 +54,7 @@ class RegisterController extends Controller
             ];
             $validator = Validator::make($request->all(), $rules);
             if($validator->fails()) {
-                return response()->json(['error' => 'validation error'], 500);
+                return response()->json(['error' => 'validation error', 'message' => 'something is missed'], 500);
             }
             // check if the email is unique
             if(DB::table('users')->where('email', $request->input('email'))->exists()) {
@@ -89,7 +89,7 @@ class RegisterController extends Controller
             Validate phone number
             *
             */
-            $phoneNo_rule = ['phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9'];
+            $phoneNo_rule = ['phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13'];
             $phone_validator = Validator($request->all(), $phoneNo_rule);
             if($phone_validator->fails()) {
                 return response()->json(['error' => 'phone number is not valid'], 500);

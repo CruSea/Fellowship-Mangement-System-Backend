@@ -40,7 +40,7 @@ class UserController extends Controller
             * phone validation
             */
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
             ];
             $phone_validation = Validator::make($request->all(), $phone_rule);
             if($phone_validation->fails()) {
@@ -146,7 +146,7 @@ class UserController extends Controller
             * phone validation
             */
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
             ];
             $phone_validation = Validator::make($request, $phone_rule);
             if($phone_validation->fails()) {
