@@ -153,3 +153,6 @@ Route::group(['prefix' => 'sms-port'], function () {
 Route::get('/sms-ports', [
     'uses' => 'NegaritController@getSmsPorts',
 ]);
+
+// setting routes
+Route::group(['prefix' => 'setting']);
