@@ -5,14 +5,20 @@ use Illuminate\Support\Facades\Validator;
 use App\SmsPort;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use App\Setting;
 use JWTAuth;
 
 class NegaritController extends Controller
 {
     public function storeSmsPort(Request $request) {
         try {
+            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            if(!$setting) {
+                return response()->json(['message' => 'API_KEY is not found', 'error' => 'please add api key in setting from negarit api'], 404);
+            }
+            $API_KEY = $setting->value;
             $rule = [
-                'port_name' => 'required|string|min:4'
+                'port_name' => 'required|string|min:4|unique:sms_ports'
             ];
             $validator = Validator::make($request->all(), $rule);
             if($validator->fails()) {
@@ -24,21 +30,20 @@ class NegaritController extends Controller
             ];
             $validators = Validator::make($request->all(), $rules);
             if($validators->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validators->messages()], 500);
             }
-            $api_port_rule = [
-                'api_key' => 'required|string',
+            $port_rule = [
                 'port_type' => 'required|string'
             ];
-            $api_port_validator = Validator::make($request->all(), $api_port_rule);
-            if($api_port_validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'something went wrong in port type or api key'], 500);
+            $port_validator = Validator::make($request->all(), $port_rule);
+            if($port_validator->fails()) {
+                return response()->json(['message' => 'validation error', 'error' => $port_validator->messages()], 500);
             }
             // check weather the sms port name exists before
-            $check_smsPort_existance = DB::table('sms_ports')->where('port_name', $request->input('port_name'))->exists();
-            if($check_smsPort_existance) {
-                return response()->json(['error' => 'Ooops! this port name is occupied'], 403);
-            }
+            // $check_smsPort_existance = DB::table('sms_ports')->where('port_name', $request->input('port_name'))->exists();
+            // if($check_smsPort_existance) {
+            //     return response()->json(['error' => 'Ooops! this port name is occupied'], 403);
+            // }
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
                 return response()->json(['error' => 'user is not found'], 404);
@@ -50,9 +55,10 @@ class NegaritController extends Controller
             
 
 
-            $smsPort->api_key = $request->input('api_key');
+            $smsPort->api_key = $API_KEY;
             $smsPort->negarit_sms_port_id = $request->input('negarit_sms_port_id');
             $smsPort->negarit_campaign_id = $request->input('negarit_campaign_id');
+            $smsPort->port_type = $request->input('port_type');
             if($smsPort->save()) {
                 return response()->json(['message' => 'port saved successfully'], 200);
             }
@@ -104,15 +110,15 @@ class NegaritController extends Controller
             ];
             $validators = Validator::make($request, $rules);
             if($validators->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validators->messages()], 500);
             }
-            $api_port_rule = [
+            $port_rule = [
                 'api_key' => 'required|string',
                 'port_type' => 'required|string'
             ];
-            $api_port_validator = Validator::make($request, $api_port_rule);
-            if($api_port_validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'something went wrong in port type or api key'], 500);
+            $port_validator = Validator::make($request, $port_rule);
+            if($port_validator->fails()) {
+                return response()->json(['message' => 'validation error', 'error' => $port_validator->messages()], 500);
             }
             // check weather the sms port name exists before
             $check_smsPort_existance = DB::table('sms_ports')->where('port_name', $request['port_name'])->exists();

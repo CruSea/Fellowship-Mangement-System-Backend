@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Validator;
+use App\Setting;
 class SettingController extends Controller
 {
     protected $root_url;
@@ -14,12 +15,12 @@ class SettingController extends Controller
         try {
             $request = request()->only('name', 'value');
             $rule = [
-                'name' => 'required|string',
+                'name' => 'required|string|unique:settings',
                 'value' => 'required'
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             $old_setting = Setting::where('name', '=', $request['name'])->first();
             if($old_setting instanceof Setting) {
@@ -109,6 +110,27 @@ class SettingController extends Controller
             } else {
                 return response()->json(['message' => '404 error found', 'error' => 'API Key is not found'], 404);
             }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function getSmsPorts() {
+        try {
+            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            if($setting instanceof Setting) {
+                $API_KEY = $setting->value;
+                $negarit_response = $this->sendGetRequest($this->root_url, 'api_request/sms_ports?API_KEY='.$API_KEY);
+                $decoded_response = json_decode($negarit_response);
+                if($decoded_response) {
+                    if(isset($decoded_response->sms_ports)) {
+                        $smsPorts = $decoded_response->sms_ports;
+                        return response()->json(['sms ports' => $smsPorts], 200);
+                    }
+                    return response()->json(['message' => 'Ooops! something went wrong', 'error' => $decoded_response], 500);
+                }
+                return response()->json(['message' => 'error found', 'error' => $decoded_response], 500);
+            }
+            return response()->json(['message' => 'error found', 'error' => 'setting is not found'], 404);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

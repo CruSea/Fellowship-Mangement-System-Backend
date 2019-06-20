@@ -30,32 +30,32 @@ class UserController extends Controller
             * email validation
             */
             $email_rule = [
-                'email' => 'required|email|string|max:255',
+                'email' => 'required|email|string|max:255|unique:users',
             ];
             $email_validation = Validator::make($request->all(), $email_rule);
             if($email_validation->fails()) {
-                return response()->json(['message' => 'email validation error', 'erorr' => 'The email is not valid'], 500);
+                return response()->json(['message' => 'email validation error', 'erorr' => $email_validation->messages()], 500);
             }
             /*
             * phone validation
             */
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:users',
             ];
             $phone_validation = Validator::make($request->all(), $phone_rule);
             if($phone_validation->fails()) {
-                return response()->json(['message' => 'phone validation error', 'error' => 'the phone number is not valid'], 500);
+                return response()->json(['message' => 'phone validation error', 'error' => $phone_validation->messages()], 500);
             }
             // check weather the email exists before
-            $check_email_existance = DB::table('users')->where('email', $request->input('email'))->exists();
-            if($check_email_existance) {
-                return response()->json(['error' => 'Ooops! this email is occupied'], 500);
-            }
-            // check weather the phone exists before
-            $check_phone_existance = DB::table('users')->where('phone', $request->input('phone'))->exists();
-            if($check_phone_existance) {
-                return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
-            }
+            // $check_email_existance = DB::table('users')->where('email', $request->input('email'))->exists();
+            // if($check_email_existance) {
+            //     return response()->json(['error' => 'Ooops! this email is occupied'], 500);
+            // }
+            // // check weather the phone exists before
+            // $check_phone_existance = DB::table('users')->where('phone', $request->input('phone'))->exists();
+            // if($check_phone_existance) {
+            //     return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
+            // }
 
             /*
             * password validation
@@ -65,14 +65,14 @@ class UserController extends Controller
             ];
             $password_validation = Validator::make($request->all(), $password_rule);
             if($password_validation->fails()) {
-                return response()->json(['message' => 'password validation error', 'error' => 'the password is not valid (minimum password length is 6)'], 500);
+                return response()->json(['message' => 'password validation error', 'error' => $password_validation->messages()], 500);
             }
             $rules = [
                 'full_name' => 'required|string|max:255',
             ];
             $validation = Validator::make($request->all(), $rules);
             if($validation->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'name is not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validation->messages()], 500);
             }
             // add automatically new user id in user_role table
             //$user_role = new UserRole();
@@ -102,7 +102,7 @@ class UserController extends Controller
             $user = new User();
             $user = JWtAuth::parseToken()->toUser();
             if(!$user instanceof User) {
-                return response()->json(['message' => 'user is not found', 'error' => 'the user you finding is not found', 404]);
+                return response()->json(['message' => 'user is not found', 'error' => 'the user you finding is not found'], 404);
             }
             $userRole = DB::table('role_user')->where('user_id', '=', $user->id)->first();
             $role_id = $userRole->role_id;
@@ -150,7 +150,7 @@ class UserController extends Controller
             ];
             $phone_validation = Validator::make($request, $phone_rule);
             if($phone_validation->fails()) {
-                return response()->json(['message' => 'phone validation error', 'error' => 'the phone number is not valid'], 500);
+                return response()->json(['message' => 'phone validation error', 'error' => $phone_validation->messages()], 500);
             }
             /*
             * email validation
@@ -160,7 +160,7 @@ class UserController extends Controller
             ];
             $email_validation = Validator::make($request, $email_rule);
             if($email_validation->fails()) {
-                return response()->json(['message' => 'email validation error', 'erorr' => 'The email is not valid'], 500);
+                return response()->json(['message' => 'email validation error', 'erorr' => $email_validation->messages()], 500);
             }
             $rule = [
                 'full_name' => 'required|string|max:255',
@@ -201,7 +201,7 @@ class UserController extends Controller
         ];
         $validate_password = Validator::make($request, $password_rule);
         if($validate_password->fails()) {
-            return response()->json(['message' => 'password validation error', 'error' => 'the password is not valid (minimum password length is 6)'], 500);
+            return response()->json(['message' => 'password validation error', 'error' => $validate_password->messages()], 500);
         }
 
         $old_password = $request['old_password'];
@@ -213,7 +213,7 @@ class UserController extends Controller
             ];
             $validate_new_password = Validator::make($requestNewPassword, $new_password_rule);
             if($validate_new_password->fails()) {
-                return response()->json(['message' => 'password validation error', 'error' => 'the password is not valid (minimum password length is 6)'], 500);
+                return response()->json(['message' => 'password validation error', 'error' => $validate_new_password->messages()], 500);
             }
             $user->password = bcrypt($requestNewPassword['new_password']);
             $user->updated_at = new DateTime();
@@ -266,7 +266,7 @@ class UserController extends Controller
             ];
             $validate_status = Validator::make($request, $status_rule);
             if($validate_status->fails()) {
-                return response()->json(['message' => 'status validation error', 'error' => 'the status is not valid'], 500);
+                return response()->json(['message' => 'status validation error', 'error' => $validate_status->messages()], 500);
             }
             $user->status = $request['status'];
             $user->updated_at = new DateTime();
@@ -289,7 +289,7 @@ class UserController extends Controller
         ];
         $validator = Validator::make($request->all(), $rule);
         if($validator->fails()) {
-            return response()->json(['message' => 'validation error', 'error' => 'role value is not valid'], 500);
+            return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
         }
         $getRole = Role::find($request->input('role'));
         if(!$getRole) {

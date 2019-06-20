@@ -131,10 +131,10 @@ Route::group(['prefix' => 'message'], function(){
         'uses' => 'MessageController@deleteContactMessage',
     ]);
 });
-Route::post('group-message', [
-    'uses' => 'MessageController@sendGroupMessage'
+Route::post('/team-message', [
+    'uses' => 'MessageController@sendTeamMessage'
 ]);
-Route::get('messages', [
+Route::get('/messages', [
     'uses' => 'MessageController@getContactsMessages',
 ]);
 
@@ -155,4 +155,26 @@ Route::get('/sms-ports', [
 ]);
 
 // setting routes
-Route::group(['prefix' => 'setting']);
+Route::group(['prefix' => 'setting'], function () {
+    Route::post('/', [
+        'uses' => 'SettingController@createSetting',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'SettingController@getSetting',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'SettingController@updateSetting',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'SettingController@deleteSetting',
+    ]);
+});
+Route::get('/settings', [
+    'uses' => 'SettingController@getSettings',
+]);
+Route::get('/campaign', [
+    'uses' => 'SettingController@getCampaigns',
+]);
+Route::get('/get-sms-ports', [
+    'uses' => 'SettingController@getSmsPorts',
+]);

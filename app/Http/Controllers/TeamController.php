@@ -28,17 +28,17 @@ class TeamController extends Controller
             
             $request = request()->only('name', 'description');
             // check name duplication
-            $name = DB::table('teams')->where('name', $request['name'])->exists();
-            if($name) {
-                return response()->json(['message' => 'team name duplication error', 'error' => 'team name is duplicated'], 500);
-            }
+            // $name = DB::table('teams')->where('name', $request['name'])->exists();
+            // if($name) {
+            //     return response()->json(['message' => 'team name duplication error', 'error' => 'team name is duplicated'], 500);
+            // }
             $rule = [
-                'name' => 'required|string|max:255',
+                'name' => 'required|string|max:255|unique:teams',
                 'description' => 'required|string|max:255',
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'the values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             if(!$user) {
                 return response()->json(['message' => 'authentication error', 'error' => 'user is not autorized to add a team'], 404);
@@ -91,17 +91,17 @@ class TeamController extends Controller
                 return response()->json(['message' => 'Ooops! an error occurred', 'error' => 'team is not found'], 404);
             }
             // check name duplication
-            $check_name_existance = DB::table('teams')->where('name', $request['name'])->exists();
-            if($check_name_existance && $request['name'] != $team->name) {
-                return response()->json(['message' => 'team name duplication error', 'error' => 'team name is duplicated'], 500);
-            }
+            // $check_name_existance = DB::table('teams')->where('name', $request['name'])->exists();
+            // if($check_name_existance && $request['name'] != $team->name) {
+            //     return response()->json(['message' => 'team name duplication error', 'error' => 'team name is duplicated'], 500);
+            // }
             $rule = [
-                'name' => 'required|string|max:255',
+                'name' => 'required|string|max:255|unique:teams',
                 'description' => 'required|string|max:255',
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'the values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             
             $team->name = $request['name'];
@@ -175,17 +175,17 @@ class TeamController extends Controller
                 return response()->json(['error' => 'user is not authenticated'], 500);
             }
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
             ];
             $phone_validator = Validator::make($request->all(), $phone_rule);
             if($phone_validator->fails()) {
-                return response()->json(['message' => 'phone validation error' , 'error' => 'The phone is not valid'], 500);
+                return response()->json(['message' => 'phone validation error' , 'error' => $phone_validator->messages()], 500);
             }
             // check weather the phone exists before
-            $check_phone_existance = DB::table('contacts')->where('phone', $request->input('phone'))->exists();
-            if($check_phone_existance) {
-                return response()->json(['error' => 'Ooops! This phone number is already in the database'], 403);
-            }
+            // $check_phone_existance = DB::table('contacts')->where('phone', $request->input('phone'))->exists();
+            // if($check_phone_existance) {
+            //     return response()->json(['error' => 'Ooops! This phone number is already in the database'], 403);
+            // }
             $rules = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
@@ -193,7 +193,7 @@ class TeamController extends Controller
             ];
             $validator = Validator::make($request->all(), $rules);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             $contact = new Contact();
             $contact->full_name = $request->input('full_name');
@@ -260,7 +260,7 @@ class TeamController extends Controller
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'team is not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             $getTeam = DB::table('teams')->where('name', '=' , $name)->first();
            if(!$getTeam) {

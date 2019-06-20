@@ -30,17 +30,17 @@ class ContactController extends Controller
             }
             $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
             ];
             $phone_validator = Validator::make($request, $phone_rule);
             if($phone_validator->fails()) {
-                return response()->json(['message' => 'phone validation error' , 'error' => 'The phone is not valid'], 500);
+                return response()->json(['message' => 'phone validation error' , 'error' => $phone_validator->messages()], 500);
             }
             // check weather the phone exists before
-            $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
-            if($check_phone_existance) {
-                return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
-            }
+            // $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
+            // if($check_phone_existance) {
+            //     return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
+            // }
             $rules = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
@@ -48,7 +48,7 @@ class ContactController extends Controller
             ];
             $validator = Validator::make($request, $rules);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             $contact = new Contact();
             $contact->full_name = $request['full_name'];
@@ -96,17 +96,17 @@ class ContactController extends Controller
             $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
             $contact = Contact::find($id);
             $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
             ];
             $phone_validator = Validator::make($request, $phone_rule);
             if($phone_validator->fails()) {
-                return response()->json(['message' => 'phone validation error' , 'error' => 'The phone is not valid'], 500);
+                return response()->json(['message' => 'phone validation error' , 'error' => $phone_validator->messages()], 500);
             }
             // check weather the phone exists before
-            $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
-            if($check_phone_existance && $request['phone'] != $contact->phone) {
-                return response()->json(['error' => 'Ooops! this phone number is already in the database'], 500);
-            }
+            // $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
+            // if($check_phone_existance && $request['phone'] != $contact->phone) {
+            //     return response()->json(['error' => 'Ooops! this phone number is already in the database'], 500);
+            // }
             $rules = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
@@ -114,7 +114,7 @@ class ContactController extends Controller
             ];
             $validator = Validator::make($request, $rules);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             if($contact instanceof Contact) {
                 $contact->full_name = isset($request['full_name']) ? $request['full_name'] : $contact->full_name;

@@ -54,17 +54,17 @@ class RegisterController extends Controller
             ];
             $validator = Validator::make($request->all(), $rules);
             if($validator->fails()) {
-                return response()->json(['error' => 'validation error', 'message' => 'something is missed'], 500);
+                return response()->json(['error' => 'validation error', 'message' => $validator->messages()], 500);
             }
-            // check if the email is unique
-            if(DB::table('users')->where('email', $request->input('email'))->exists()) {
-                return response()->json(['error' => 'Ooops! This Email is Occupied'],500);
-            }
+            // // check if the email is unique
+            // if(DB::table('users')->where('email', $request->input('email'))->exists()) {
+            //     return response()->json(['error' => 'Ooops! This Email is Occupied'],500);
+            // }
             
-            // check if the phone number is unique
-            else if(DB::table('users')->where('phone', $request->input('phone'))->exists()) {
-                return response()->json(['error' => 'Ooops! This Phone is already in the database']);
-            }
+            // // check if the phone number is unique
+            // else if(DB::table('users')->where('phone', $request->input('phone'))->exists()) {
+            //     return response()->json(['error' => 'Ooops! This Phone is already in the database']);
+            // }
             /*
             Validate email address
             *
@@ -89,7 +89,7 @@ class RegisterController extends Controller
             Validate phone number
             *
             */
-            $phoneNo_rule = ['phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13'];
+            $phoneNo_rule = ['phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:users'];
             $phone_validator = Validator($request->all(), $phoneNo_rule);
             if($phone_validator->fails()) {
                 return response()->json(['error' => 'phone number is not valid'], 500);
@@ -106,7 +106,7 @@ class RegisterController extends Controller
                 $user = new User();
                 $user->full_name = $request->input('full_name');
                 $user->phone = $request->input('phone');
-                 $user->email = $request->input('email');
+                $user->email = $request->input('email');
                 $user->fellowship_id = $fellowship->id;
                 $user->password = bcrypt($request->input('password'));
                 $user->remember_token = str_random(10);
