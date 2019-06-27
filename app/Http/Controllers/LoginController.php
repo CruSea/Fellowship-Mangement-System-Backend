@@ -50,7 +50,7 @@ class LoginController extends Controller
             ];
             $validator = Validator::make($request->all(), $rules);
             if($validator->fails()) {
-                return response()->json(['status' => false, 'error' => 'validation error'], 500);
+                return response()->json(['status' => false, 'message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             $credential = $request->only('email', 'password');
            // $status = DB::table('users')->where('email', $request->input('email'))->value('status');

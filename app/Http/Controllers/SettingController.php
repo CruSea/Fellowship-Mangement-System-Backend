@@ -9,6 +9,10 @@ class SettingController extends Controller
 {
     protected $root_url;
     public function __construct() {
+        $this->middleware('ability:,create-setting', ['only' => ['createSetting', 'getCampaigns', 'getSmsPorts']]);
+        $this->middleware('ability:,get-setting', ['only' => ['getSetting', 'getSettings']]);
+        $this->middleware('ability:,update-setting', ['only' => ['updateSetting']]);
+        $this->middleware('ability:,delete-setting', ['only' => ['deleteSetting']]);
         $this->root_url = "http://api.negarit.net/api/";
     }
     public function createSetting() {
@@ -61,6 +65,10 @@ class SettingController extends Controller
     public function getSettings() {
         try {
             $settings = Setting::all();
+            $countSetting = Setting::count();
+            if($countSetting == 0) {
+                return response()->json(['message' => 'setting is empty'], 404);
+            }
             return response()->json(['settings' => $settings], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
@@ -69,15 +77,21 @@ class SettingController extends Controller
     public function updateSetting($id) {
         try {
             $request = request()->only('name', 'value');
-            $rule = [
-                'name' => 'string',
-            ];
-            $validator = Validator::make($request, $rule);
-            if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
-            }
             $old_setting = Setting::find($id);
+
+            
             if($old_setting instanceof Setting) {
+                $rule = [
+                    'name' => 'string',
+                ];
+                $validator = Validator::make($request, $rule);
+                if($validator->fails()) {
+                    return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
+                }
+                $check_setting_existance = Setting::where('name', '=', $request['name'])->exists();
+                if($check_setting_existance && $request['name'] != $old_setting->name) {
+                    return response()->json(['message' => 'duplication error', 'error' => 'The setting name has already been taken.'], 400);
+                }
                 $old_setting->name = isset($request['name']) ? $request['name'] : $old_setting->name;
                 $old_setting->value = isset($request['value']) ? $request['value'] : $old_setting->value;
                 if($old_setting->update()) {
@@ -147,6 +161,7 @@ class SettingController extends Controller
                 }
                 return response()->json(['message' => '404 error found', 'error' => 'setting is not found'], 404);
             }
+            return response()->json(['message' => 'setting is not found'], 400);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

@@ -23,65 +23,33 @@ class UserController extends Controller
         $this->middleware('ability:,delete-user', ['only' => ['deleteUser']]);
         $this->middleware('ability:,edit-user-status', ['only' => ['updateUserStatus']]);
         $this->middleware('ability:,edit-user-role', ['only' => ['updateUserRole']]);
+        $this->middleware('ability:,get-user', ['only' => ['getUserRole', 'getUsers']]);
+        $this->middleware('ability:,get-me', ['only' => ['getMe']]);
     }
-    public function store(Request $request) {
+    protected function store(Request $request) {
         try {
+            $authUser = JWTAuth::parseToken()->toUser();
+            if(!$authUser) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+            }
             /*
             * email validation
             */
-            $email_rule = [
-                'email' => 'required|email|string|max:255|unique:users',
-            ];
-            $email_validation = Validator::make($request->all(), $email_rule);
-            if($email_validation->fails()) {
-                return response()->json(['message' => 'email validation error', 'erorr' => $email_validation->messages()], 500);
-            }
-            /*
-            * phone validation
-            */
-            $phone_rule = [
+            $rule = [
+                'full_name' => 'required|string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:users',
-            ];
-            $phone_validation = Validator::make($request->all(), $phone_rule);
-            if($phone_validation->fails()) {
-                return response()->json(['message' => 'phone validation error', 'error' => $phone_validation->messages()], 500);
-            }
-            // check weather the email exists before
-            // $check_email_existance = DB::table('users')->where('email', $request->input('email'))->exists();
-            // if($check_email_existance) {
-            //     return response()->json(['error' => 'Ooops! this email is occupied'], 500);
-            // }
-            // // check weather the phone exists before
-            // $check_phone_existance = DB::table('users')->where('phone', $request->input('phone'))->exists();
-            // if($check_phone_existance) {
-            //     return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
-            // }
-
-            /*
-            * password validation
-            */
-            $password_rule = [
+                'email' => 'required|email|string|max:255|unique:users',
                 'password' => 'required|string|min:6',
             ];
-            $password_validation = Validator::make($request->all(), $password_rule);
-            if($password_validation->fails()) {
-                return response()->json(['message' => 'password validation error', 'error' => $password_validation->messages()], 500);
-            }
-            $rules = [
-                'full_name' => 'required|string|max:255',
-            ];
-            $validation = Validator::make($request->all(), $rules);
+            $validation = Validator::make($request->all(), $rule);
             if($validation->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $validation->messages()], 500);
+                return response()->json(['message' => 'email validation error', 'erorr' => $validation->messages()], 500);
             }
-            // add automatically new user id in user_role table
-            //$user_role = new UserRole();
-            $authenticatedUser = JWtAuth::parseToken()->toUser();
             $user = new User();
             $user->full_name = $request->input('full_name');
             $user->phone = $request->input('phone');
             $user->email = $request->input('email');
-            $user->fellowship_id = $authenticatedUser->fellowship_id;
+            $user->fellowship_id = $authUser->fellowship_id;
             $user->password = bcrypt($request->input('password'));
             $user->remember_token = str_random(10);
             // $user->updated_at = new DateTime();
@@ -97,9 +65,8 @@ class UserController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $e.getMessage()], $ex->getStatusCode());
         }
     }
-    public function getMe() {
+    protected function getMe() {
         try {
-            $user = new User();
             $user = JWtAuth::parseToken()->toUser();
             if(!$user instanceof User) {
                 return response()->json(['message' => 'user is not found', 'error' => 'the user you finding is not found'], 404);
@@ -113,61 +80,41 @@ class UserController extends Controller
             return response()->json(['error' => $ex->getMessage()], $ex->getStatusCode());
         }
     }
-    public function getUsers() {
-        
+    protected function getUsers() {
         try {
-            $users = new User();
-            return response()->json(['users' => $users->paginate(10)], 200);
+            $authUser = JWTAuth::parseToken()->toUser();
+            if(!$authUser) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+            }
+            $users = User::all();
+            return response()->json(['users' => $users], 200);
         } catch(Exception $ex) {
             return response()->json(['error' => $ex->getMessage()] ,$ex->getStatusCode());
         }
     }
-    public function checkEmail(Request $request) {
-        $check_email_existance = DB::table('users')->where('email', $request->input('email'))->exists();
-            if($check_email_existance) {
-                return response()->json(['error' => 'Ooops! this email is occupied'], 500);
-            }
-    }
-    public function updateUser() {
+    protected function updateUser() {
         try {
             $getUser = JWTAuth::parseToken()->toUser();
             $request = request()->only('full_name', 'phone', 'email');
+            $rules = [
+                'full_name' => 'required|string|max:255',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                'email' => 'required|email|max:255'
+
+            ];
+            $validator = Validator::make($request, $rules);
+            if($validator->fails()) {
+                return response()->json(['error' => 'validation error', 'message' => $validator->messages()], 500);
+            }
             // check weather the email exists before
-            $check_email_existance = DB::table('users')->where('email', $request['email'])->exists();
+            $check_email_existance = User::where('email', '=',$request['email'])->exists();
             if($check_email_existance && $request['email'] != $getUser->email) {
-                return response()->json(['error' => 'Ooops! this email is occupied'], 500);
+                return response()->json(['error' => 'Ooops! this email is occupied'], 400);
             }
             // check weather the phone exists before
-            $check_phone_existance = DB::table('users')->where('phone', $request['phone'])->exists();
+            $check_phone_existance = User::where('phone', $request['phone'])->exists();
             if($check_phone_existance && $request['phone'] != $getUser->phone) {
-                return response()->json(['error' => 'Ooops! this phone number is already in the database'], 500);
-            }
-            /*
-            * phone validation
-            */
-            $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
-            ];
-            $phone_validation = Validator::make($request, $phone_rule);
-            if($phone_validation->fails()) {
-                return response()->json(['message' => 'phone validation error', 'error' => $phone_validation->messages()], 500);
-            }
-            /*
-            * email validation
-            */
-            $email_rule = [
-                'email' => 'required|email|string|max:255',
-            ];
-            $email_validation = Validator::make($request, $email_rule);
-            if($email_validation->fails()) {
-                return response()->json(['message' => 'email validation error', 'erorr' => $email_validation->messages()], 500);
-            }
-            $rule = [
-                'full_name' => 'required|string|max:255',
-            ];
-            $validator = Validator::make($request, $rule);
-            if($validator->fails()) {
-                return response()->json(['message' => 'something went wrong', 'error' =>'the value you entered is not valid'], 500);
+                return response()->json(['error' => 'The phone has already been taken.'], 400);
             }
             $oldUser = User::find($getUser->id);
             //$oldUser = User::find($id);
@@ -190,58 +137,63 @@ class UserController extends Controller
             return response()->json(['message' => 'somthing went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
         }
     }
-    public function updatePassword() {
+    protected function updatePassword() {
         //$user = User::find($id);
-        $user = JWTAuth::parseToken()->toUser();
-        $request = request()->only('old_password');
-        $requestNewPassword = request()->only('new_password');
-        //old password validation
-        $password_rule = [
-            'old_password' => 'required|string|min:6',
-        ];
-        $validate_password = Validator::make($request, $password_rule);
-        if($validate_password->fails()) {
-            return response()->json(['message' => 'password validation error', 'error' => $validate_password->messages()], 500);
-        }
-
-        $old_password = $request['old_password'];
-        $encrypt_oldPassword = bcrypt($old_password);
-        if(Hash::check($old_password, $user->password)) {
-            //new password validation
-            $new_password_rule = [
-                'new_password' => 'required|string|min:6',
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            $request = request()->only('old_password');
+            $requestNewPassword = request()->only('new_password');
+            //old password validation
+            $password_rule = [
+                'old_password' => 'required|string|min:6',
             ];
-            $validate_new_password = Validator::make($requestNewPassword, $new_password_rule);
-            if($validate_new_password->fails()) {
-                return response()->json(['message' => 'password validation error', 'error' => $validate_new_password->messages()], 500);
+            $validate_password = Validator::make($request, $password_rule);
+            if($validate_password->fails()) {
+                return response()->json(['message' => 'password validation error', 'error' => $validate_password->messages()], 500);
             }
-            $user->password = bcrypt($requestNewPassword['new_password']);
-            $user->updated_at = new DateTime();
-            if($user->save()) {
-                return response()->json(['message' => 'password updated successfully'], 200);
+
+            $old_password = $request['old_password'];
+            $encrypt_oldPassword = bcrypt($old_password);
+            if(Hash::check($old_password, $user->password)) {
+                //new password validation
+                $new_password_rule = [
+                    'new_password' => 'required|string|min:6',
+                ];
+                $validate_new_password = Validator::make($requestNewPassword, $new_password_rule);
+                if($validate_new_password->fails()) {
+                    return response()->json(['message' => 'password validation error', 'error' => $validate_new_password->messages()], 500);
+                }
+                $user->password = bcrypt($requestNewPassword['new_password']);
+                $user->updated_at = new DateTime();
+                if($user->save()) {
+                    return response()->json(['message' => 'password updated successfully'], 200);
+                }
+                else {
+                    return response()->json(['message' => 'Ooops! somthing went wrong while updating password'], 500);
+                }
             }
             else {
-                return response()->json(['message' => 'Ooops! somthing went wrong while updating password'], 500);
+                return response()->json(['message' => 'password mismatch error', 'error' => "the password you entered doesn't not match"], 200);
             }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
-        else {
-            return response()->json(['message' => 'password mismatch error', 'error' => "the password you entered doesn't not match"], 200);
-        }
-        
     }
-    public function deleteUser($id) {
+    protected function deleteUser($id) {
         try {
+            $authUser = JWTAuth::parseToken()->toUser();
+            if(!$authUser) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+            }
             $user = User::find($id);
             if(!$user) {
                 return response()->json(['error' => 'user is not found'], 404);
-            }
-            
-
-            // $getUser = JWTAuth::parseToken()->toUser();
+            }        
+            $getUser = JWTAuth::parseToken()->toUser();
             // check own delete
-            // if($user == $getUser) {
-            //     return response()->json(['error' => 'trying to delete yourself'], 404);
-            // }
+            if($user == $getUser) {
+                return response()->json(['message' => 'if you want to delete yourself please delete your account'], 403);
+            }
             if($user->delete()) {
                 return response()->json(['message' => 'user deleted successfully'], 200);
             }
@@ -253,8 +205,25 @@ class UserController extends Controller
         }
 
     }
-    public function updateUserStatus($id) {
+    protected function deleteAccount() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                // if($user->delete()) {
+                //     return response()->json(['message' => 'your account will be deleted with in two days', 'response' => 'your account will be active if you use your account with in two days'], 200);
+                // }
+            }
+            return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    protected function updateUserStatus($id) {
+        try {
+            $authUser = JWTAuth::parseToken()->toUser();
+            if(!$authUser) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+            }
             $user = User::find($id);
             $request = request()->only('status');
             
@@ -279,32 +248,45 @@ class UserController extends Controller
             return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => $ex->getMessage], $ex->getStatusCode());
         }
     }
-    public function updateUserRole(Request $request, $id) {
+    protected function updateUserRole(Request $request, $id) {
+        $authUser = JWTAuth::parseToken()->toUser();
+        if(!$authUser) {
+            return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+        }
         $user = User::find($id);
         if(!$user) {
             return response()->json(['error' => 'user is not found'], 404);
         }
         $rule = [
-            'role' => 'required|integer',
+            'role' => 'required|string',
         ];
         $validator = Validator::make($request->all(), $rule);
         if($validator->fails()) {
             return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
         }
-        $getRole = Role::find($request->input('role'));
+        $getRole = Role::where('name', '=', $request->input('role'))->first();
+        // $getRole = Role::find($request->input('role'));
         if(!$getRole) {
             return response()->json(['error' => 'specified role is not found'], 404);
         }
+        $role_id = $getRole->id;
+        if($role_id == 1) {
+            return response()->json(['error' => 'this role is not found'], 404);
+        }
         $user->roles()->detach($user->roles->first());
-        $user->roles()->attach($getRole);
+        $user->roles()->attach($role_id);
         if($user->update()) {
             return response()->json(['message' => 'role updated successfully'], 200);
         } else {
             return response()->json(['error' => '!Ooops something went wrong'], 500);
         }
     }
-    public function getUserRole($id) {
+    protected function getUserRole($id) {
         try {
+            $authUser = JWTAuth::parseToken()->toUser();
+            if(!$authUser) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+            }
             $user = User::find($id);
             if(!$user) {
                 return response()->json(['message' => 'an error occurred', 'error' => 'specified user is not found'], 404);
@@ -317,7 +299,7 @@ class UserController extends Controller
             return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => $ex->getMessage], $ex->getStatusCode());
         }
     }
-    public function importExcel()
+    protected function importExcel()
 	{
         
 		// if(Input::hasFile('file')){

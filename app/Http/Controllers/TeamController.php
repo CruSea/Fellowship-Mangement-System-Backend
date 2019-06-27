@@ -16,9 +16,9 @@ class TeamController extends Controller
     public function __construct() {
         $this->middleware('ability:,create-team', ['only' => ['addTeam']]);
         $this->middleware('ability:,get-team', ['only' => ['getTeam', 'getTeams']]);
-        $this->middleware('ability:,delete-team', ['only' => ['deleteTeam']]);
+        $this->middleware('ability:,delete-team', ['only' => ['deleteTeam', 'deleteMember']]);
         $this->middleware('ability:,edit-team', ['only' => ['updateTeam']]);
-        $this->middleware('ability:,manage-members', ['only' => ['updateUserRole', 'assignTeam', 'seeMembers']]);
+        $this->middleware('ability:,manage-members', ['only' => ['updateMemberTeam', 'assignMembers', 'seeMembers', 'addMember']]);
     }
     public function addTeam() {
         try {
@@ -27,11 +27,6 @@ class TeamController extends Controller
             $team = new Team();
             
             $request = request()->only('name', 'description');
-            // check name duplication
-            // $name = DB::table('teams')->where('name', $request['name'])->exists();
-            // if($name) {
-            //     return response()->json(['message' => 'team name duplication error', 'error' => 'team name is duplicated'], 500);
-            // }
             $rule = [
                 'name' => 'required|string|max:255|unique:teams',
                 'description' => 'required|string|max:255',
@@ -69,12 +64,12 @@ class TeamController extends Controller
     }
     public function getTeams() {
         try {
-            $teams = new Team();
-            $countTeam = DB::table('teams')->count();
-            if($countTeam == 0) {
-                return response()->json(['team is not available'], 404);
+            $teams = Team::all();
+            $countTeams = Team::count();
+            if($countTeams == 0) {
+                return response()->json(['error' => 'team is not empty'], 404);
             }
-            return response()->json(['teams' => $teams->paginate(10)], 200);
+            return response()->json(['teams' => $teams], 200);
         }catch(Exception $ex) {
             return repsonse()->josn(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -90,20 +85,21 @@ class TeamController extends Controller
             if(!$team) {
                 return response()->json(['message' => 'Ooops! an error occurred', 'error' => 'team is not found'], 404);
             }
-            // check name duplication
-            // $check_name_existance = DB::table('teams')->where('name', $request['name'])->exists();
-            // if($check_name_existance && $request['name'] != $team->name) {
-            //     return response()->json(['message' => 'team name duplication error', 'error' => 'team name is duplicated'], 500);
-            // }
+            
+            
             $rule = [
-                'name' => 'required|string|max:255|unique:teams',
+                'name' => 'required|string|max:255',
                 'description' => 'required|string|max:255',
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
-            
+            // check name duplication
+            $check_name_existance = Team::where('name', '=',$request['name'])->exists();
+            if($check_name_existance && $request['name'] != $team->name) {
+                return response()->json(['message' => 'team name duplication error', 'error' => 'The team has already been taken.'], 400);
+            }
             $team->name = $request['name'];
             $team->description = $request['description'];
             if($team->update()) {
@@ -174,27 +170,17 @@ class TeamController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'user is not authenticated'], 500);
             }
-            $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
-            ];
-            $phone_validator = Validator::make($request->all(), $phone_rule);
-            if($phone_validator->fails()) {
-                return response()->json(['message' => 'phone validation error' , 'error' => $phone_validator->messages()], 500);
-            }
-            // check weather the phone exists before
-            // $check_phone_existance = DB::table('contacts')->where('phone', $request->input('phone'))->exists();
-            // if($check_phone_existance) {
-            //     return response()->json(['error' => 'Ooops! This phone number is already in the database'], 403);
-            // }
-            $rules = [
+            $rule = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
             ];
-            $validator = Validator::make($request->all(), $rules);
+            $validator = Validator::make($request->all(), $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
+                return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 400);
             }
+            
             $contact = new Contact();
             $contact->full_name = $request->input('full_name');
             $contact->gender = $request->input('gender');
@@ -248,7 +234,7 @@ class TeamController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-    public function updateMember($name, $id) {
+    public function updateMemberTeam($name, $id) {
         try {
             $request = request()->only('team');
             $contact = Contact::find($id);
@@ -276,6 +262,17 @@ class TeamController extends Controller
             }
             $get_contact_team = ContactTeam::find($contact_team->id);
             $get_contact_team->team_id = $team->id;
+
+            // check whether user is trying to update to the same team
+            if($request['team'] == $name) {
+                return response()->json(['message' => 'trying to update to the same team', 'error' => "contact can't be updated to the same team"], 400);
+            }
+            // check contact is already found in new team
+            $check_team_contact_existance = ContactTeam::where([['team_id', $team->id], ['contact_id', $contact->id]])->first();
+            if($check_team_contact_existance instanceof ContactTeam) {
+                $get_contact_team->delete();
+                return response()->json(['response' => 'contact is removed from '.$getTeam->name .' team', 'message' => 'contact is already found in the '. $team->name .' team'], 400);
+            }
             if($get_contact_team->update()) {
                 return response()->json(['message' => 'contact updated to '. $team->name .' team successfully'], 200);
            }

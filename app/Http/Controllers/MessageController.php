@@ -18,37 +18,35 @@ class MessageController extends Controller
 {
     protected $negarit_api_url;
     public function __construct() {
+        $this->middleware('ability:,send-message', ['only' => ['sendContactMessage', 'sendTeamMessage']]);
+        $this->middleware('ability:,get-message', ['only' => ['getContactMessage', 'getContactsMessages', 'getNegaritRecievedMessage']]);
+        $this->middleware('ability:,delete-contact-message', ['only' => ['deleteContactMessage']]);
         $this->negarit_api_url = 'http://api.negarit.net/api/';
     }
     public function sendContactMessage() {
         try {
-            $request = request()->only('message', 'sent_to', 'port_name');
-            $rule = [
-                'message' => 'required|string|min:1',
-                'port_name' => 'required|string|max:255'
-            ];
-            $validator = Validator::make($request, $rule);
-            if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
-            }
-            $phone_rule = [
-                'sent_to' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
-            ];
-            $phone_validator = Validator::make($request, $phone_rule);
-            if($phone_validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $phone_validator->messages()], 500);
-            }
             $user = new User();
             $user = JWtAuth::parseToken()->toUser();
             if(!$user instanceof User) {
                 return response()->json(['error' => 'user is not found'], 404);
+            }
+            $request = request()->only('message', 'sent_to', 'port_name');
+            $rule = [
+                'message' => 'required|string|min:1',
+                'port_name' => 'required|string|max:255',
+                'sent_to' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+            ];
+            $validator = Validator::make($request, $rule);
+            if($validator->fails()) {
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             $getUser = $user->full_name;
 
             // $getSmsPortName = SmsPort::find($request['port_name']);
             $getSmsPortName = DB::table('sms_ports')->where('port_name', '=', $request['port_name'])->first();
             if(!$getSmsPortName) {
-                return response()->json(['error' => 'sms port is not found'], 404);
+                return response()->json(['error' => 'sms port is not found', 
+                    'message' => 'add sms port first'], 404);
             }
             $getSmsPortId = $getSmsPortName->id;
             $sentMessage = new SentMessage([
@@ -105,11 +103,12 @@ class MessageController extends Controller
     public function getContactMessage($id) {
         try {
             $getMessage = SentMessage::find($id);
-            if(!$getMessage) {
-                return response()->json(['message' => 'error found', 
-                'error' => 'message is not found'], 404);
+            if($getMessage instanceof SentMessage) {
+                return response()->json(['message' => $getMessage], 200);
             }
-            return response()->json(['message' => $getMessage], 200);
+            return response()->json(['message' => 'error found', 
+            'error' => 'message is not found'], 404);
+            
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 
             'error' => $ex->getMessage()], 500);
@@ -117,12 +116,12 @@ class MessageController extends Controller
     }
     public function getContactsMessages() {
         try{
-            $contactMessage = SentMessage::orderBy('id', 'DESC')->paginate(5);
-            $countMessages = DB::table('sent_messages')->count();
+            $contactMessage = SentMessage::all();
+            $countMessages = SentMessage::count();
             if($countMessages == 0) {
                 return response()->json(['message is not available'], 404);
             }
-            return response()->json(['messages' => $contactMessage, 'count' => $countMessages], 200);
+            return response()->json(['messages' => $contactMessage, 'number_of_messages' => $countMessages], 200);
         } catch(Exception $x) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -180,6 +179,7 @@ class MessageController extends Controller
             // get phones that recieve the message and not recieve the message
             $get_successfull_sent_phones = array();
             $get_unsent_phones = array();
+            $getMessagePhones = array();
             for($i = 0; $i < count($contacts); $i++) {
                 $contact = $contacts[$i];
                 $sent_message = new SentMessage([
@@ -191,7 +191,10 @@ class MessageController extends Controller
                     'sent_by' => $user->full_name,
                 ]);
                 $sent_message->save();
-
+                // return response()->json(['sent_messages' => $sent_message->sent_to], 200);
+                $getMessagePhones[$i] = $sent_message->sent_to;
+                // print_r($sent_message->sent_to);
+                // exit();
                 $setting = Setting::where('name', '=', 'API_KEY')->first();
                 if(!$setting) {
                     return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
@@ -221,7 +224,7 @@ class MessageController extends Controller
                         $indexUnset = 0;
                         $get_unsent_phones[$indexUnsent] = $decoded_response->sent_to;
                         ++$indexUnset;
-                        // return response()->json(['message' => 'Ooops! something went wrongggggggggg', 'response' => $decode_response], 500);
+                        // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decode_response], 500);
                     }
                     
                 } else {
@@ -229,7 +232,7 @@ class MessageController extends Controller
                 }
             }
             return response()->json(['message' => 'message sent successfully', 
-            'successfully sent phones' => $get_successfull_sent_phones, 'failed phones' => $get_unsent_phones, 'response' => $decoded_response], 200);
+            'successfully sent phones' => $get_successfull_sent_phones, 'failed phones' => $get_unsent_phones, 'sent phones' => $getMessagePhones], 200);
             // $negarit_message_request = array();
             // $negarti_message_request['API_KEY'] = $setting->value;
             // $negarti_message_request['message'] = $request['message'];

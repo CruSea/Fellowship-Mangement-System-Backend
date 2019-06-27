@@ -96,7 +96,7 @@ Route::group(['prefix' => 'team'], function() {
         'uses' => 'TeamController@deleteTeam',
     ]);
     
-    Route::group(['prefix' => '{name}/members'], function() {
+    Route::group(['prefix' => '/members/{name}'], function() {
         // assign contact a team
         Route::post('/{id}', [
             'uses' => 'TeamController@assignMembers',
@@ -105,14 +105,14 @@ Route::group(['prefix' => 'team'], function() {
             'uses' => 'TeamController@seeMembers',
         ]);
         Route::patch('/{id}', [
-            'uses' => 'TeamController@updateMember',
+            'uses' => 'TeamController@updateMemberTeam',
         ]);
         Route::delete('/{id}', [
             'uses' => 'TeamController@deleteMember',
         ]);
     });
 });
-Route::post('{name}/addMember', [
+Route::post('team/addMember/{name}', [
     'uses' => 'TeamController@addMember',
 ]);
 Route::get('/teams', [
@@ -137,6 +137,9 @@ Route::post('/team-message', [
 Route::get('/messages', [
     'uses' => 'MessageController@getContactsMessages',
 ]);
+Route::get('/respond-messages', [
+    'uses' => 'MessageController@getNegaritRecievedMessage'
+]);
 
 // sms-port routes
 Route::group(['prefix' => 'sms-port'], function () {
@@ -149,6 +152,8 @@ Route::group(['prefix' => 'sms-port'], function () {
     Route::patch('/{id}', [
         'uses' => 'NegaritController@updateSmsPort',
     ]);
+    Route::delete('/{id}', [
+        'uses' => 'NegaritController@deleteSmsPort']);
 });
 Route::get('/sms-ports', [
     'uses' => 'NegaritController@getSmsPorts',

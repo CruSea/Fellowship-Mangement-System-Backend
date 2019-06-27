@@ -13,6 +13,7 @@ use Input;
 use JWTAuth;
 use Excel;
 use CsvValidator;
+use DateTime;
 
 class ContactController extends Controller
 {
@@ -26,29 +27,18 @@ class ContactController extends Controller
         try{
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
-                return response()->json(['message' => 'authentication error', 'error' => "not authorized to add contacts"], 404);
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to add contacts"], 401);
             }
             $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
-            $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
-            ];
-            $phone_validator = Validator::make($request, $phone_rule);
-            if($phone_validator->fails()) {
-                return response()->json(['message' => 'phone validation error' , 'error' => $phone_validator->messages()], 500);
-            }
-            // check weather the phone exists before
-            // $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
-            // if($check_phone_existance) {
-            //     return response()->json(['error' => 'Ooops! This phone number is already in the database'], 500);
-            // }
-            $rules = [
+            $rule = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
             ];
-            $validator = Validator::make($request, $rules);
+            $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
+                return response()->json(['message' => 'phone validation error' , 'error' => $validator->messages()], 500);
             }
             $contact = new Contact();
             $contact->full_name = $request['full_name'];
@@ -65,24 +55,12 @@ class ContactController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-    public function getContacts() {
-        try {
-            $contacts = new Contact();
-            $countContact = DB::table('contacts')->count();
-            if($countContact == 0) {
-                return response()->json(['contact is not available'], 404);
-            }
-            return response()->json(['contacts' => $contacts->paginate(10)], 200);
-        } catch(Exception $ex) {
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex], 500);
-        }
-    }
     public function getContact($id) {
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($contact = Contact::find($id)) {
                 if(!$user) {
-                    return response()->json(['message' => 'authentication error', 'error' => "not authorized to add contacts"], 404);
+                    return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
                 }
                 return response()->json(['contact' => $contact], 200);
             }
@@ -91,32 +69,48 @@ class ContactController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
+    public function getContacts() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
+            }
+            $contacts = Contact::all();
+            $countContact = Contact::count();
+            if($countContact == 0) {
+                return response()->json(['contact is not available'], 404);
+            }
+            return response()->json(['contacts' => $contacts], 200);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex], 500);
+        }
+    }
     public function updateContact($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
+            }
+
             $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
             $contact = Contact::find($id);
-            $phone_rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
-            ];
-            $phone_validator = Validator::make($request, $phone_rule);
-            if($phone_validator->fails()) {
-                return response()->json(['message' => 'phone validation error' , 'error' => $phone_validator->messages()], 500);
-            }
-            // check weather the phone exists before
-            // $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
-            // if($check_phone_existance && $request['phone'] != $contact->phone) {
-            //     return response()->json(['error' => 'Ooops! this phone number is already in the database'], 500);
-            // }
-            $rules = [
+            
+            if($contact instanceof Contact) {
+                $rule = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
-            ];
-            $validator = Validator::make($request, $rules);
-            if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
-            }
-            if($contact instanceof Contact) {
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                ];
+                $validator = Validator::make($request, $rule);
+                if($validator->fails()) {
+                    return response()->json(['message' => 'phone validation error' , 'error' => $validator->messages()], 500);
+                }
+                // check weather the phone exists before
+                $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
+                if($check_phone_existance && $request['phone'] != $contact->phone) {
+                    return response()->json(['error' => 'The phone has already been taken'], 400);
+                }
                 $contact->full_name = isset($request['full_name']) ? $request['full_name'] : $contact->full_name;
                 $contact->gender = isset($request['gender']) ? $request['gender'] : $contact->gender;
                 $contact->phone = isset($request['phone']) ? $request['phone'] : $contact->phone;
@@ -126,14 +120,19 @@ class ContactController extends Controller
                 } 
                 return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to update contact'], 500);
             }
+            return response()->json(['message' => 'error found', 'error' => 'contact is not found'], 404);
 
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-    public function importContact()
-	{
-        
+    public function importContact() { 
+        $user = JWTAuth::parseToken()->toUser();
+        if(!$user) {
+            return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
+        }
+        // $contact = Contact::all();
+        // dd($contact->phone);
 		if(Input::hasFile('file')){
             $path = Input::file('file')->getRealPath();
 			$data = Excel::load($path, function($reader) {
@@ -203,12 +202,30 @@ class ContactController extends Controller
                     //     return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
                     // }
                     /* csv validation =================================================================*/
-                    $insert[] = ['firstname' => $value->firstname, 'lastname' => $value->lastname, 
-                    'phone' => $value->phone, 'university' => $value->university];
+
+                    // phone validation 
+                    if($value->phone == null) {
+                        return response()->json(['message' => "validation error", 'error' => "phone can't be null"], 403);
+                    }
+                    // if($value->phone == $contact->phone) {
+                    //     dd('phone duplication error.');
+                    //     return response()->json(['message' => 'duplication error', 'error' => 'Phone has already been taken.'], 400);
+                    // }
+                    // full_name validation
+                    if($value->full_name == null) {
+                        return response()->json(['message' => 'validation error', 'error' => "full name can't be null"], 403);
+                    }
+                    if($value->gender == null) {
+                        return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 403);
+                    }
+                    $insert[] = ['full_name' => $value->full_name, 'gender' => $value->gender, 
+                    'phone' => $value->phone, 'acadamic_department' => $value->acadamic_department, 'fellowship_id' => $user->fellowship_id, 'created_at' => new DateTime(), 'updated_at' => new DateTime()];
                 }
 				if(!empty($insert)){
+                    // Contact::insert($insert);
 					DB::table('contacts')->insert($insert);
                     dd('Insert Record successfully.');
+
                     return response()->json(['message' => 'contacts added successfully'], 200);
 				}
             }
@@ -220,6 +237,11 @@ class ContactController extends Controller
     }
     public function deleteContact($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
+            }
+
             if($contact = Contact::find($id)) {
                 if($contact->delete()) {
                     return response()->json(['message' => 'contact deleted successfully'], 200);
@@ -231,6 +253,4 @@ class ContactController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-    
-
 }

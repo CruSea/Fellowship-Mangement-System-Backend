@@ -44,6 +44,18 @@ class UsersTableSeeder extends Seeder
         $createUser->description  = 'create new users'; // optional
         $createUser->save();
 
+        $getUser = new Permission();
+        $getUser->name          = 'get-user';
+        $getUser->display_name  = 'get user';
+        $getUser->description   = 'get user';
+        $getUser->save();
+
+        $getMe = new Permission();
+        $getMe->name            = 'get-me';
+        $getMe->display_name    = 'get me';
+        $getMe->description     = 'user gets its own account';
+        $getMe->save();
+
         $editUser = new Permission();
         $editUser->name         = 'edit-user';
         $editUser->display_name = 'Edit Users'; // optional
@@ -131,6 +143,79 @@ class UsersTableSeeder extends Seeder
         $manageTeamMembers->save();
 
 
+        // message permission
+        $sendMessage = new Permission();
+        $sendMessage->name                 = 'send-message';
+        $sendMessage->display_name         = 'send message';
+        $sendMessage->description          = 'send member message';
+        $sendMessage->save();
+
+        $getMessage = new Permission();
+        $getMessage->name            = 'get-message';
+        $getMessage->display_name    = 'get message';
+        $getMessage->description     = 'get sent message and respond message from users';
+        $getMessage->save();
+
+        $deleteContactMessage = new Permission();
+        $deleteContactMessage->name               = 'delete-contact-message';
+        $deleteContactMessage->display_name       = 'delete contact message';
+        $deleteContactMessage->description        = 'delete contact message';
+        $deleteContactMessage->save();
+
+
+        // negarit_api permission
+        $storeSmsPort = new Permission();
+        $storeSmsPort->name             = 'store-sms-port';
+        $storeSmsPort->display_name     = 'store sms port';
+        $storeSmsPort->description      = 'store sms port from negarit api';
+        $storeSmsPort->save();
+
+        $getSmsPort = new Permission();
+        $getSmsPort->name               = 'get-sms-port';
+        $getSmsPort->display_name       = 'get sms port';
+        $getSmsPort->description        = 'get sms port';
+        $getSmsPort->save();
+
+        $updateSmsPort = new Permission();
+        $updateSmsPort->name            = 'update-sms-port';
+        $updateSmsPort->display_name    = 'update sms port';
+        $updateSmsPort->description     = 'update sms port';
+        $updateSmsPort->save();
+
+        $deleteSmsPort = new Permission();
+        $deleteSmsPort->name            = 'delete-sms-port';
+        $deleteSmsPort->display_name    = 'delete sms port';
+        $deleteSmsPort->description     = 'delete sms port';
+        $deleteSmsPort->save();
+
+
+        // setting permission
+        $createSetting = new Permission();
+        $createSetting->name            = 'create-setting';
+        $createSetting->display_name    = 'create setting';
+        $createSetting->description     = 'create setting';
+        $createSetting->save();
+
+        $getSetting = new Permission();
+        $getSetting->name               = 'get-setting';
+        $getSetting->display_name       = 'get setting';
+        $getSetting->description        = 'get setting';
+        $getSetting->save();
+
+        $updateSetting = new Permission();
+        $updateSetting->name            = 'update-setting';
+        $updateSetting->display_name    = 'update setting';
+        $updateSetting->description     = 'update setting';
+        $updateSetting->save();
+
+        $deleteSetting = new Permission();
+        $deleteSetting->name            = 'delete-setting';
+        $deleteSetting->display_name    = 'delete setting';
+        $deleteSetting->description     = 'delete setting';
+        $deleteSetting->save();
+
+
+
         $superAdminRole->attachPermissions(
             array(
                 $createUser, 
@@ -139,6 +224,8 @@ class UsersTableSeeder extends Seeder
                 $editUserStatus,
                 $editUserRole,
                 $editOwnPassword,
+                $getUser,
+                $getMe,
 
                 $createContact,
                 $editContact,
@@ -151,6 +238,22 @@ class UsersTableSeeder extends Seeder
                 $deleteTeam,
                 
                 $manageTeamMembers,
+
+                $createSetting,
+                $getSetting,
+                $updateSetting,
+                $deleteSetting,
+
+                $storeSmsPort,
+                $getSmsPort,
+                $updateSmsPort,
+                $deleteSmsPort,
+
+                $sendMessage,
+                $getMessage,
+                $deleteContactMessage,
+
+
             ));
         // equivalent to $superAdmin->perms()->sync(array($createUser->id, $editUser->id));
 
@@ -160,6 +263,9 @@ class UsersTableSeeder extends Seeder
                 $editUser,
                 $editOwnPassword,
                 $deleteUser,
+                $editUserStatus,
+                $getUser,
+                $getMe,
 
                 $createContact,
                 $editContact,
@@ -173,14 +279,50 @@ class UsersTableSeeder extends Seeder
                 
                 $manageTeamMembers,
 
+                $createSetting,
+                $getSetting,
+                $updateSetting,
+                $deleteSetting,
+
+                $storeSmsPort,
+                $getSmsPort,
+                $updateSmsPort,
+                $deleteSmsPort,
+
+                $sendMessage,
+                $getMessage,
+                $deleteContactMessage
+
             ));
         $editerRole->attachPermissions(
             array(
                 $editOwnPassword,
+                $getMe,
+
+                $createSetting,
+                $getSetting,
+                $updateSetting,
+                $deleteSetting,
+
+                $storeSmsPort,
+                $getSmsPort,
+                $updateSmsPort,
+                $deleteSmsPort,
+
+                $sendMessage,
+                $getMessage,
+                $deleteContactMessage
             ));
         $viewerRole->attachPermissions(
             array(
-                $editOwnPassword
+                $editOwnPassword,
+                $getMe,
+
+                $getSetting,
+
+                $getSmsPort,
+
+                $getMessage,
             ));
         // equivalent to $admin->perms()->sync(array($createUser->id));
     }

@@ -50,53 +50,16 @@ class RegisterController extends Controller
                 'full_name' => 'required|string|max:255',
                 'university_name' => 'required|string|max:255',
                 'university_city' => 'required|string|max:255',
-                'specific_place' => 'string|max:255'
+                'specific_place' => 'string|max:255',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:users',
+                'email' => 'required|email|max:255|unique:users',
+                'password' => 'required|string|min:6',
+
             ];
             $validator = Validator::make($request->all(), $rules);
             if($validator->fails()) {
                 return response()->json(['error' => 'validation error', 'message' => $validator->messages()], 500);
             }
-            // // check if the email is unique
-            // if(DB::table('users')->where('email', $request->input('email'))->exists()) {
-            //     return response()->json(['error' => 'Ooops! This Email is Occupied'],500);
-            // }
-            
-            // // check if the phone number is unique
-            // else if(DB::table('users')->where('phone', $request->input('phone'))->exists()) {
-            //     return response()->json(['error' => 'Ooops! This Phone is already in the database']);
-            // }
-            /*
-            Validate email address
-            *
-            */
-            $email_rule = ['email' => 'required|email|max:255|unique:users'];
-            $email_validator = Validator::make($request->all(), $email_rule);
-            if($email_validator->fails()) {
-                return response()->json(['error' => 'email is not valid'], 500);
-            }
-
-            /*
-            Validate password
-            *
-            */
-            $password_rule = ['password' => 'required|string|min:6'];
-            $password_validator = Validator::make($request->all(), $password_rule);
-            if($password_validator->fails()) {
-                return response()->json(['error' => 'password is not valid (min character for password is 6)'], 500);
-            }
-
-            /*
-            Validate phone number
-            *
-            */
-            $phoneNo_rule = ['phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:users'];
-            $phone_validator = Validator($request->all(), $phoneNo_rule);
-            if($phone_validator->fails()) {
-                return response()->json(['error' => 'phone number is not valid'], 500);
-            }
-            
-            // add automatically new user id in user_role table
-            //$user_role = new UserRole();
             
             $fellowship = new Fellowship();
             $fellowship->university_name = $request->input('university_name');
@@ -129,9 +92,5 @@ class RegisterController extends Controller
         }
         
         
-    }
-    protected function users() {
-        $users = User::all();
-        return response()->json(['user' => $user], 200);
     }
 }
