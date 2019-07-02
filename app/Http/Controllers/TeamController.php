@@ -6,10 +6,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use App\Team;
+use App\User;
 use App\Contact;
 use App\ContactTeam;
 use App\Fellowship;
+use Input;
+use Excel;
 use JWTAuth;
+use DateTime;
 
 class TeamController extends Controller
 {
@@ -304,6 +308,50 @@ class TeamController extends Controller
            }
            return response()->json(['message' => 'unexpected error', 'error' => "Ooops! contact doesn't deleted from the team successfully"], 500);
         }catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function importContactForTeam($name) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                if(Input::hasFile('file')) {
+                    $path = Input::file('file')->getRealPath();
+                    $data = Excel::load($path, function($reader){
+                    })->get();
+                    $headerRow = $data->first()->keys();
+                    $request = request()->only($headerRow[0], $headerRow[1], $headerRow[2], $headerRow[3]);
+                    if(!empty($data) && $data->count()) {
+                        foreach($data as $key => $value) {
+                            // phone validation 
+                            if($value->phone == null) {
+                                return response()->json(['message' => 'validation error', 'error' => "phone can't be null"], 404);
+                            }
+                            // full_name validation 
+                            if($value->full_name == null) {
+                                return response()->json(['message' => 'validatoin error', 'error' => "full name can't be null"], 404);
+                            }
+                            // gender validatin
+                            if($value->gender == null) {
+                                return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 404);
+                            }
+                            $insert[] = ['full_name' => $value->full_name, 'phone' => $value->phone,'gender' => $value->gender, 'fellowship_id' => $user->fellowship_id, 'created_at' => new DateTime(), 'updated_at' => new DateTime()];
+                        }
+                        if(!empty($insert)) {
+                            $contact = new Contact();
+                            $contact::insert($insert);
+                            // DB::table('contacts')->insert($insert);
+                            dd('Insert recorded successfully.');
+                        }
+                    }
+                    else {
+                        return response()->json(['message' => 'file is empty', 'error' => 'unable to add contact'], 404);
+                    }
+                }
+                return response()->json(['message' => 'File not found', 'error' => 'Contact file is not provided'], 404);
+            } 
+            return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+        } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }

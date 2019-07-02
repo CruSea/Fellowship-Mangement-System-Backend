@@ -38,31 +38,42 @@ class UserController extends Controller
             $rule = [
                 'full_name' => 'required|string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:users',
+                'role' => 'required|string',
                 'email' => 'required|email|string|max:255|unique:users',
                 'password' => 'required|string|min:6',
+
             ];
             $validation = Validator::make($request->all(), $rule);
             if($validation->fails()) {
                 return response()->json(['message' => 'email validation error', 'erorr' => $validation->messages()], 500);
             }
-            $user = new User();
-            $user->full_name = $request->input('full_name');
-            $user->phone = $request->input('phone');
-            $user->email = $request->input('email');
-            $user->fellowship_id = $authUser->fellowship_id;
-            $user->password = bcrypt($request->input('password'));
-            $user->remember_token = str_random(10);
-            // $user->updated_at = new DateTime();
-            if($user->save()) {
-                $user_role = Role::find(4);
-                $user->attachRole($user_role);
-                return response()->json(['message' => 'user registered successfully'], 201);
+            $role = Role::where('name', '=', $request['role'])->first();
+            if($role instanceof Role) {
+                // $role_id = $role->id;
+                $user = new User();
+                $user->full_name = $request->input('full_name');
+                $user->phone = $request->input('phone');
+                $user->email = $request->input('email');
+                $user->fellowship_id = $authUser->fellowship_id;
+                $user->password = bcrypt($request->input('password'));
+                $user->remember_token = str_random(10);
+                // $user->updated_at = new DateTime();
+                if($user->save()) {
+                    // $user_role = Role::find(4);
+                    // $role_id = $role->id;
+                    // $user_role = Role::find($role_id);
+                    $user->roles()->attach($role);
+                    // $user->attachRole($user_role);
+                    return response()->json(['message' => 'user registered successfully', 'UserRole' => $role], 201);
+                }
+                else {
+                    return response()->json(['error' => 'Ooops! something went wrong'], 500);
+                }
             }
-            else {
-                return response()->json(['error' => 'Ooops! something went wrong'], 500);
-            }
-        } catch(Exception $e) {
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $e.getMessage()], $ex->getStatusCode());
+            return response()->json(['message' => 'role is not found', 'error' => 'please enter a right role'], 404);
+            
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
         }
     }
     protected function getMe() {

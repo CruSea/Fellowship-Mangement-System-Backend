@@ -115,6 +115,9 @@ Route::group(['prefix' => 'team'], function() {
 Route::post('team/addMember/{name}', [
     'uses' => 'TeamController@addMember',
 ]);
+Route::post('team/importContacts/{name}', [
+    'uses' => 'TeamController@importContactForTeam'
+]);
 Route::get('/teams', [
     'uses' => 'TeamController@getTeams',
 ]);
@@ -177,9 +180,10 @@ Route::group(['prefix' => 'setting'], function () {
 Route::get('/settings', [
     'uses' => 'SettingController@getSettings',
 ]);
-Route::get('/campaign', [
+Route::get('/campaigns', [
     'uses' => 'SettingController@getCampaigns',
 ]);
-Route::get('/get-sms-ports', [
+Route::get('/
+    ', [
     'uses' => 'SettingController@getSmsPorts',
 ]);
