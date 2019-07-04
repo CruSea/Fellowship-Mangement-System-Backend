@@ -48,6 +48,7 @@ class TeamController extends Controller
             $team->name = $request['name'];
             $team->description = $request['description'];
             $team->fellowship_id = $fellowship_id;
+            $team->created_by = $user;
             if($team->save()) {
                 return response()->json(['message' => 'team added successfully'], 200);
             }
@@ -191,6 +192,7 @@ class TeamController extends Controller
             $contact->phone = $request->input('phone');
             $contact->acadamic_department = $request->input('acadamic_department');
             $contact->fellowship_id = $user->fellowship_id;
+            $contact->created_by = json_encode($user);
 
             if($contact->save()) {
                 $team_id = $team->id;
@@ -335,7 +337,7 @@ class TeamController extends Controller
                             if($value->gender == null) {
                                 return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 404);
                             }
-                            $insert[] = ['full_name' => $value->full_name, 'phone' => $value->phone,'gender' => $value->gender, 'fellowship_id' => $user->fellowship_id, 'created_at' => new DateTime(), 'updated_at' => new DateTime()];
+                            $insert[] = ['full_name' => $value->full_name, 'phone' => $value->phone,'gender' => $value->gender, 'fellowship_id' => $user->fellowship_id, 'created_by' => $user->full_name,'created_at' => new DateTime(), 'updated_at' => new DateTime()];
                         }
                         if(!empty($insert)) {
                             $contact = new Contact();

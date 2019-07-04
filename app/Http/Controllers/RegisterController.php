@@ -75,8 +75,14 @@ class RegisterController extends Controller
                 $user->remember_token = str_random(10);
                 // $user->updated_at = new DateTime();
                 if($user->save()) {
-                    $user_role = Role::find(4);
-                    $user->attachRole($user_role);
+                    $role = Role::where('name', '=', 'viewer')->first();
+                    if(!$role) {
+                        $user_role = Role::find(4);
+                        $user->attachRole($user_role);
+                        return response()->json(['message' => 'user registered successfully'], 201);
+                    }
+                    // $user_role = Role::find(4);
+                    $user->attachRole($role);
                     return response()->json(['message' => 'user registered successfully'], 201);
                 }
                 else {

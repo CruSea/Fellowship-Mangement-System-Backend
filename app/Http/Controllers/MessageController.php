@@ -40,7 +40,6 @@ class MessageController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
-            $getUser = $user->full_name;
 
             // $getSmsPortName = SmsPort::find($request['port_name']);
             $getSmsPortName = DB::table('sms_ports')->where('port_name', '=', $request['port_name'])->first();
@@ -55,7 +54,7 @@ class MessageController extends Controller
                 'is_sent' => false,
                 'is_delivered' => false,
                 'sms_port_id' => $getSmsPortId,
-                'sent_by' => $getUser,
+                'sent_by' => $user,
             ]);
             if($sentMessage->save()) {
                 $getSmsPort = SmsPort::find($getSmsPortId);

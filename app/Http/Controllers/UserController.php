@@ -48,6 +48,9 @@ class UserController extends Controller
                 return response()->json(['message' => 'email validation error', 'erorr' => $validation->messages()], 500);
             }
             $role = Role::where('name', '=', $request['role'])->first();
+            if($request['role'] == 'super-admin') {
+                return response()->json(['message' => 'role is not found', 'error' => 'please enter a right role'], 404);
+            }
             if($role instanceof Role) {
                 // $role_id = $role->id;
                 $user = new User();
@@ -64,7 +67,7 @@ class UserController extends Controller
                     // $user_role = Role::find($role_id);
                     $user->roles()->attach($role);
                     // $user->attachRole($user_role);
-                    return response()->json(['message' => 'user registered successfully', 'UserRole' => $role], 201);
+                    return response()->json(['message' => 'user registered successfully'], 201);
                 }
                 else {
                     return response()->json(['error' => 'Ooops! something went wrong'], 500);

@@ -16,8 +16,14 @@ class UsersTableSeeder extends Seeder
        $superAdminRole = new Role();
         $superAdminRole->name         = 'super-admin';
         $superAdminRole->display_name = 'Super Admin'; // optional
-        $superAdminRole->description  = 'User is super admin of a given project'; // optional
+        $superAdminRole->description  = 'User is super admin of a fellowship management system'; // optional
         $superAdminRole->save();
+
+        $ownerRole = new Role();
+        $ownerRole->name           = 'owner';
+        $ownerRole->display_name   = 'Owner';
+        $ownerRole->description    = 'User is owner of a given project';
+        $ownerRole->save();
 
         $adminRole = new Role();
         $adminRole->name         = 'admin';
@@ -257,6 +263,44 @@ class UsersTableSeeder extends Seeder
             ));
         // equivalent to $superAdmin->perms()->sync(array($createUser->id, $editUser->id));
 
+        $ownerRole->attachPermissions(
+            array(
+                $createUser, 
+                $editUser,
+                $deleteUser,
+                $editUserStatus,
+                $editUserRole,
+                $editOwnPassword,
+                $getUser,
+                $getMe,
+
+                $createContact,
+                $editContact,
+                $getContact,
+                $deleteContact,
+                
+                $createTeam,
+                $getTeam,
+                $editTeam,
+                $deleteTeam,
+                
+                $manageTeamMembers,
+
+                $createSetting,
+                $getSetting,
+                $updateSetting,
+                $deleteSetting,
+
+                $storeSmsPort,
+                $getSmsPort,
+                $updateSmsPort,
+                $deleteSmsPort,
+
+                $sendMessage,
+                $getMessage,
+                $deleteContactMessage,
+            )
+        );
         $adminRole->attachPermissions(
             array(
                 $createUser,

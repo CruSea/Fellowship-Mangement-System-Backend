@@ -22,7 +22,7 @@ class CreateSentMessagesTable extends Migration
             $table->boolean('is_delivered');
             $table->integer('sms_port_id')->unsigned()->nullable();
             $table->foreign('sms_port_id')->references('id')->on('sms_ports')->onDelete('cascade');
-            $table->string('sent_by');
+            $table->json('sent_by');
             $table->timestamps();
         });
     }

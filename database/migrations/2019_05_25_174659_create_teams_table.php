@@ -19,6 +19,7 @@ class CreateTeamsTable extends Migration
         $table->string('description')->nullable();
         $table->integer('fellowship_id')->unsigned()->nullable();
         $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
+        $table->json('created_by');
         $table->timestamps();
         });
     }

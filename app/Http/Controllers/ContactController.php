@@ -46,6 +46,7 @@ class ContactController extends Controller
             $contact->phone = $request['phone'];
             $contact->acadamic_department = $request['acadamic_department'];
             $contact->fellowship_id = $user->fellowship_id;
+            $contact->created_by = json_encode($user);
 
             if($contact->save()) {
                 return response()->json(['message' => 'contact added successfully'], 200);
@@ -62,7 +63,7 @@ class ContactController extends Controller
                 if(!$user) {
                     return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
                 }
-                return response()->json(['contact' => $contact], 200);
+                return response()->json(['contact' => $contact->full_name], 200);
             }
             return response()->json(['message' => 'an error found', 'error' => 'contact is not found'], 404);
         } catch(Exception $ex) {
@@ -219,7 +220,7 @@ class ContactController extends Controller
                         return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 403);
                     }
                     $insert[] = ['full_name' => $value->full_name, 'gender' => $value->gender, 
-                    'phone' => $value->phone, 'acadamic_department' => $value->acadamic_department, 'fellowship_id' => $user->fellowship_id, 'created_at' => new DateTime(), 'updated_at' => new DateTime()];
+                    'phone' => $value->phone, 'acadamic_department' => $value->acadamic_department, 'fellowship_id' => $user->fellowship_id, 'created_by' => $user->full_name,'created_at' => new DateTime(), 'updated_at' => new DateTime()];
                 }
 				if(!empty($insert)){
                     // Contact::insert($insert);
