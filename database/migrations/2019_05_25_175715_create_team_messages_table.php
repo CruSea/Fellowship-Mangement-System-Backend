@@ -18,7 +18,7 @@ class CreateTeamMessagesTable extends Migration
         $table->string('message');
         $table->integer('team_id')->unsigned();
         $table->foreign('team_id')->references('id')->on('teams')->onDelete('cascade');
-        $table->string('sent_by');
+        $table->json('sent_by');
         $table->timestamps();
         });
     }

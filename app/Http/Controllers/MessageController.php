@@ -279,7 +279,7 @@ class MessageController extends Controller
             $team_id = $team->id;
             $team_message->message = $request['message'];
             $team_message->team_id = $team_id;
-            $team_message->sent_by = $user->full_name;
+            $team_message->sent_by = $user;
             $team_message->save();
             $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
             $team_id)->select('contact_id')->get())->get();
