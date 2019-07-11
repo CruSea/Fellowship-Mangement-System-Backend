@@ -87,6 +87,9 @@ class MessageController extends Controller
                 if($decoded_response) { 
                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                         $send_message = $decoded_response->sent_message;
+                        $sentMessage->is_sent = true;
+                        $sentMessage->is_delivered = true;
+                        $sentMessage->update();
                         return response()->json(['message' => 'message sent successfully',
                         'sent message' => $send_message], 200);
                     }
@@ -293,19 +296,22 @@ class MessageController extends Controller
             $get_messages = array();
             for($i = 0; $i < count($contacts); $i++) {
                 $contact = $contacts[$i];
-                $sent_message = new SentMessage([
-                    'message' => $request['message'],
-                    'sent_to' => $contact->phone,
-                    'is_sent' => false,
-                    'is_delivered' => false,
-                    'sms_port_id' => $getSmsPortId,
-                    'sent_by' => $user,
-                ]);
-                if(!$sent_message->save()) {
-                    return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not sent'], 500);
+                if($contact->is_post_graduate) {
+                    $sent_message = new SentMessage([
+                        'message' => $request['message'],
+                        'sent_to' => $contact->phone,
+                        'is_sent' => false,
+                        'is_delivered' => false,
+                        'sms_port_id' => $getSmsPortId,
+                        'sent_by' => $user,
+                    ]);
+                    if(!$sent_message->save()) {
+                        return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not sent'], 500);
+                    }
+                    $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
                 }
-                $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
-            }            $negarit_message_request = array();
+            }
+            $negarit_message_request = array();
             $negarit_message_request['API_KEY'] = $setting->value;
             $negarit_message_request['campaign_id'] = $getSmsPortName->negarit_campaign_id;
             $negarit_message_request['messages'] = $insert;
@@ -329,6 +335,69 @@ class MessageController extends Controller
                 }
 
             return response()->json(['message' => 'message sent successfully', ], 200); 
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function getTeamMessage() {
+        try {
+            $user = JWtAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $team_message = TeamMessage::all();
+                $count_team_message = TeamMessage::count();
+                return response()->json(['team_message' => $team_message], 200);
+            }
+            else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+            
+        } catch(Exception $ex) {
+            return response()->json(['messag' => 'Ooops! something went wrong', 
+                'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function deleteTeamMessage($id) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $team_message = TeamMessage::find($id);
+                if($team_message instanceof TeamMessage) {
+                    if($team_message->delete()) {
+                        return response()->json(['message' => 'team message deleted successfully'], 200);
+                    }
+                    return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'team message is not deleted'], 500);
+                }
+                return response()->json(['error' => 'team message is not found'], 404);
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function sendFellowshipMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $request = request()->only('port_name','message');
+                $rule = [
+                    'message' => 'required|string|min:1',
+                    'port_name' => 'required|string|max:250'
+                ];
+                $validator = Validator::make($request, $rule);
+                if($validator->fails()) {
+                    return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
+                }
+                $getSmsPortName = SmsPort::where('port_name', '=', $request['port_name'])->first();
+                if(!$getSmsPortName) {
+                    return response()->json(['message' => 'error found', 'error' => 'sms port is not found'], 404);
+                }
+                $getSmsPortId = $getSmsPortName->id;
+
+                // $contacts =
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

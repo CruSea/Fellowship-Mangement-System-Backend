@@ -9,7 +9,7 @@ use Zizaco\Entrust\Traits\EntrustUserTrait;
 
 class User extends Authenticatable
 {
-    use Notifiable, EntrustUserTrait;
+     use Notifiable, EntrustUserTrait;
 
     /**
      * The attributes that are mass assignable.
@@ -17,7 +17,7 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'full_name', 'phone', 'status', 'fellowship_id','email', 'password',
+        'full_name', 'phone', 'status', 'fellowship_id', 'senior_fellowship_id','email', 'password',
     ];
 
     /**

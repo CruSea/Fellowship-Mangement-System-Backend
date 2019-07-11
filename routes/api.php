@@ -98,7 +98,7 @@ Route::group(['prefix' => 'team'], function() {
     
     Route::group(['prefix' => '/members/{name}'], function() {
         // assign contact a team
-        Route::post('/{id}', [
+        Route::post('/', [
             'uses' => 'TeamController@assignMembers',
         ]);
         Route::get('/', [
@@ -136,6 +136,12 @@ Route::group(['prefix' => 'message'], function(){
 });
 Route::post('/team-message', [
     'uses' => 'MessageController@sendTeamMessage'
+]);
+Route::get('/team-messages', [
+    'uses' => 'MessageController@getTeamMessage'
+]);
+Route::delete('/team-message/{id}', [
+    'uses' => 'MessageController@deleteTeamMessage'
 ]);
 Route::get('/messages', [
     'uses' => 'MessageController@getContactsMessages',
@@ -183,7 +189,44 @@ Route::get('/settings', [
 Route::get('/campaigns', [
     'uses' => 'SettingController@getCampaigns',
 ]);
-Route::get('/
-    ', [
+Route::get('/get-sms-ports', [
     'uses' => 'SettingController@getSmsPorts',
+]);
+
+// event route
+Route::group(['prefix' => 'event'], function() {
+    Route::post('/', [
+        'uses' => 'EventController@store',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'EventController@show',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'EventController@update',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'EventController@delete',
+    ]);
+});
+Route::get('/events', [
+    'uses' => 'EventController@getEvents',
+]);
+
+// post graduates route
+Route::group(['prefix' => 'post-graduate'], function() {
+    Route::post('/', [
+        'uses' => 'PostGraduatesController@store',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'PostGraduatesController@show',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'PostGraduatesController@update',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'PostGraduatesController@delete',
+    ]);
+});
+Route::get('/post-graduates', [
+    'uses' => 'PostGraduatesController@getPostGraduates',
 ]);

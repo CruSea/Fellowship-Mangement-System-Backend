@@ -90,8 +90,6 @@ class TeamController extends Controller
             if(!$team) {
                 return response()->json(['message' => 'Ooops! an error occurred', 'error' => 'team is not found'], 404);
             }
-            
-            
             $rule = [
                 'name' => 'required|string|max:255',
                 'description' => 'required|string|max:255',
@@ -128,18 +126,25 @@ class TeamController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-    public function assignMembers($name, $id) {
+    public function assignMembers($name) {
         try {
-            $contact = Contact::find($id);
+            $request = request()->only('phone');
+            $rule = [
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+            ];
+            $validator = Validator::make($request, $rule);
+            if($validator->fails()) {
+                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
+            }
+            $contact = Contact::where('phone', '=', $request['phone'])->first();
+            if(!$contact) {
+                return response()->json(['error' => 'contact is not found'], 404);
+            }
             $contactTeam = new ContactTeam();
             $team = DB::table('teams')->where('name', '=', $name)->first();
             if(!$team) {
                 return response()->json(['message' => '404 error', 'error' => 'team is not found'], 404);
             }
-            if(!$contact) {
-                return response()->json(['message' => '404 error', 'error' => 'contact is not found'], 404);
-            }
-            
             if(!$contactTeam) {
                 return response()->json(['error' => 'something went wrong'], 404);
             }
@@ -152,12 +157,12 @@ class TeamController extends Controller
                 ['contact_id', '=', $contact_id],
             ])->get();
             if(count($contactDuplicationInOneTeam) > 0) {
-                return response()->json(['error' => 'duplication error', 'message' => 'contact is already add to '. $team->name .' team'], 403);
+                return response()->json(['message' => 'contact is already found in '. $team->name .' team'], 403);
             }
             $contactTeam->team_id = $team->id;
             $contactTeam->contact_id = $contact->id;
             if($contactTeam->save()) {
-                return response()->json(['message' => 'contacte assigned team successfully'], 200);
+                return response()->json(['message' => 'contact assigned '. $team->name.' team successfully'], 200);
             }
             return response()->json(['error' => 'Ooops! something went wrong'], 500);
         } catch(Exception $ex) {
@@ -180,6 +185,8 @@ class TeamController extends Controller
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
+                'email' => 'required|email|max:255|unique:contacts',
+                'graduation_year' => 'required|string',
             ];
             $validator = Validator::make($request->all(), $rule);
             if($validator->fails()) {
@@ -190,7 +197,9 @@ class TeamController extends Controller
             $contact->full_name = $request->input('full_name');
             $contact->gender = $request->input('gender');
             $contact->phone = $request->input('phone');
+            $contact->email = $request['email'];
             $contact->acadamic_department = $request->input('acadamic_department');
+            $contact->graduation_year = $request['graduation_year'];
             $contact->fellowship_id = $user->fellowship_id;
             $contact->created_by = json_encode($user);
 
@@ -322,7 +331,7 @@ class TeamController extends Controller
                     $data = Excel::load($path, function($reader){
                     })->get();
                     $headerRow = $data->first()->keys();
-                    $request = request()->only($headerRow[0], $headerRow[1], $headerRow[2], $headerRow[3]);
+                    $request = request()->only($headerRow[0], $headerRow[1], $headerRow[2], $headerRow[3], $headerRow[4], $headerRow[5], $headerRow[6]);
                     if(!empty($data) && $data->count()) {
                         foreach($data as $key => $value) {
                             // phone validation 
@@ -337,7 +346,13 @@ class TeamController extends Controller
                             if($value->gender == null) {
                                 return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 404);
                             }
-                            $insert[] = ['full_name' => $value->full_name, 'phone' => $value->phone,'gender' => $value->gender, 'fellowship_id' => $user->fellowship_id, 'created_by' => $user->full_name,'created_at' => new DateTime(), 'updated_at' => new DateTime()];
+                            if($value->email == null) {
+                                return response()->json(['message' => 'validation error', 'error' => "email can't be null"], 404);
+                            }
+                            if($value->graduation_year == null) {
+                                return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
+                            }
+                            $insert[] = ['full_name' => $value->full_name, 'phone' => $value->phone, 'email' => $request['email'], 'team' => $request['team'], 'gender' => $value->gender, 'acadamic_department' => $acadamic_department, 'graduation_year' => $request['graduation_year'],'fellowship_id' => $user->fellowship_id, 'created_by' => $user->full_name,'created_at' => new DateTime(), 'updated_at' => new DateTime()];
                         }
                         if(!empty($insert)) {
                             $contact = new Contact();

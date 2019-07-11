@@ -89,6 +89,7 @@ class RegisterController extends Controller
                     $fellowship->delete();
                     return response()->json(['error' => 'something went wrong unable to register'], 500);
                 }
+                
             } else {
                 return response()->json(['error' => 'Ooops! something went wrong'], 500);
             }

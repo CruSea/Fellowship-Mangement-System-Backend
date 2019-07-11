@@ -31,3 +31,21 @@ class CreateSettingsTable extends Migration
         Schema::dropIfExists('settings');
     }
 }
+
+// $table->increments('id');
+//             $table->string('full_name');
+//             $table->string('phone');
+//             $table->string('email')->nullable();
+//             $table->string('team')->nullable();
+//             $table->string('acadamic_department');
+//             $table->string('graduated_year');
+//             $table->timestamps();
+
+
+
+
+
+    
+
+    
+    

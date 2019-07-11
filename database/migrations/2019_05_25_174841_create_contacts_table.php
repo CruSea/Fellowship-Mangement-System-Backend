@@ -15,13 +15,14 @@ class CreateContactsTable extends Migration
     {
         Schema::create('contacts', function (Blueprint $table) {
         $table->increments('id');
-        // $table->string('firstname');
-        // $table->string('lastname');
         $table->string('full_name');
         $table->string('gender');
         $table->string('phone');
-        // $table->string('university');
+        $table->string('email')->unique()->nullable();
         $table->string('Acadamic_department')->nullable();
+        $table->date('graduation_year');
+        $table->integer('is_under_graduate')->default(true);
+        $table->integer('is_this_year_gc')->default(false);
         $table->integer('fellowship_id')->unsigned()->nullable();
         $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
         $table->json('created_by');

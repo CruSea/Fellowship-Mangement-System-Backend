@@ -45,7 +45,7 @@ class UserController extends Controller
             ];
             $validation = Validator::make($request->all(), $rule);
             if($validation->fails()) {
-                return response()->json(['message' => 'email validation error', 'erorr' => $validation->messages()], 500);
+                return response()->json(['message' => 'validation error', 'erorr' => $validation->messages()], 500);
             }
             $role = Role::where('name', '=', $request['role'])->first();
             if($request['role'] == 'super-admin') {
@@ -113,7 +113,8 @@ class UserController extends Controller
             $rules = [
                 'full_name' => 'required|string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
-                'email' => 'required|email|max:255'
+                'email' => 'required|email|max:255',
+                'role' => 'required|email|max:255',
 
             ];
             $validator = Validator::make($request, $rules);
@@ -137,6 +138,14 @@ class UserController extends Controller
                 $oldUser->full_name = isset($request['full_name']) ? $request['full_name'] : $oldUser->full_name;
                 $oldUser->phone = isset($request['phone']) ? $request['phone'] : $oldUser->phone;
                 $oldUser->email = isset($request['email']) ? $request['email'] : $oldUser->email;
+
+                $role = Role::where('name', '=', $request['role'])->first();
+                if(!$role) {
+                    return response()->json(['error' => 'role is not found'], 404);
+                }
+                $role_id = $role->id;
+                $oldUser->roles()->detach($oldUser->roles->first());
+                $oldUser->roles()->attach($role_id);
                 if($oldUser->update()) {
                     return response()->json(['message' => 'user updated successfully'], 200);
                 }
@@ -156,7 +165,7 @@ class UserController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             $request = request()->only('old_password');
-            $requestNewPassword = request()->only('new_password');
+            $requestNewPassword = request()->only('new_password', 'confirm_password');
             //old password validation
             $password_rule = [
                 'old_password' => 'required|string|min:6',
@@ -172,10 +181,14 @@ class UserController extends Controller
                 //new password validation
                 $new_password_rule = [
                     'new_password' => 'required|string|min:6',
+                    'confirm_password' => 'required|string|min:6',
                 ];
                 $validate_new_password = Validator::make($requestNewPassword, $new_password_rule);
                 if($validate_new_password->fails()) {
                     return response()->json(['message' => 'password validation error', 'error' => $validate_new_password->messages()], 500);
+                }
+                if($requestNewPassword['new_password'] != $requestNewPassword['confirm_password']) {
+                    return response()->json(['message' => 'password is not the same'], 400);
                 }
                 $user->password = bcrypt($requestNewPassword['new_password']);
                 $user->updated_at = new DateTime();

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use App\Contact;
+use App\ContactTeam;
 use App\Team;
 use App\User;
 use App\Fellowship;
@@ -29,26 +30,39 @@ class ContactController extends Controller
             if(!$user) {
                 return response()->json(['message' => 'authentication error', 'error' => "not authorized to add contacts"], 401);
             }
-            $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department');
+            $request = request()->only('full_name', 'gender', 'phone', 'email', 'acadamic_department', 'team', 'graduation_year');
             $rule = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
+                'email' => 'required|email|max:255|unique:contacts',
+                'graduation_year' => 'required|string',
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'phone validation error' , 'error' => $validator->messages()], 500);
+                return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 500);
             }
             $contact = new Contact();
             $contact->full_name = $request['full_name'];
             $contact->gender = $request['gender'];
             $contact->phone = $request['phone'];
+            $contact->email = $request['email'];
             $contact->acadamic_department = $request['acadamic_department'];
+            $contact->graduation_year = $request['graduation_year'].'-07-30';
             $contact->fellowship_id = $user->fellowship_id;
             $contact->created_by = json_encode($user);
+            $team = Team::where('name', '=', $request['team'])->first();
+
+            if($request['team'] != null && !$team) {
+                return response()->json(['message' => 'team is not found', 'error' => 'please add '. $request['team']. ' team first before adding contact to '. $request['team']. ' team'], 404);
+            }
 
             if($contact->save()) {
+                $contact_team = new ContactTeam();
+                $contact_team->team_id = $team->id;
+                $contact_team->contact_id = $contact->id;
+                $contact_team->save();
                 return response()->json(['message' => 'contact added successfully'], 200);
             }
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to save the contact'], 500);
@@ -76,10 +90,11 @@ class ContactController extends Controller
             if(!$user) {
                 return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
             }
-            $contacts = Contact::all();
+            // $contacts = Contact::all();
+            $contacts = Contact::where('is_under_graduate', '=', 1)->get();
             $countContact = Contact::count();
             if($countContact == 0) {
-                return response()->json(['contact is not available'], 404);
+                return response()->json(['message' => 'contact is not available'], 404);
             }
             return response()->json(['contacts' => $contacts], 200);
         } catch(Exception $ex) {
@@ -101,7 +116,9 @@ class ContactController extends Controller
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
+                'email' => 'required|email|max:255|unique:contacts',
+                'graduation_year' => 'required|string',
                 ];
                 $validator = Validator::make($request, $rule);
                 if($validator->fails()) {
@@ -139,7 +156,7 @@ class ContactController extends Controller
 			$data = Excel::load($path, function($reader) {
             })->get();
             $headerRow = $data->first()->keys();
-            $request = request()->only($headerRow[0], $headerRow[1], $headerRow[2], $headerRow[3]);
+            $request = request()->only($headerRow[0], $headerRow[1], $headerRow[2], $headerRow[3], $headerRow[4], $headerRow[5], $headerRow[6]);
 			if(!empty($data) && $data->count()){
 				foreach ($data as $key => $value) {
                     // check weather the phone exists before
@@ -220,7 +237,7 @@ class ContactController extends Controller
                         return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 403);
                     }
                     $insert[] = ['full_name' => $value->full_name, 'gender' => $value->gender, 
-                    'phone' => $value->phone, 'acadamic_department' => $value->acadamic_department, 'fellowship_id' => $user->fellowship_id, 'created_by' => $user->full_name,'created_at' => new DateTime(), 'updated_at' => new DateTime()];
+                    'phone' => $value->phone, 'email' => $value->email, 'team' => $value->team, 'acadamic_department' => $value->acadamic_department, 'graduation_year' => $value->graduation_year, 'fellowship_id' => $user->fellowship_id, 'created_by' => $user->full_name,'created_at' => new DateTime(), 'updated_at' => new DateTime()];
                 }
 				if(!empty($insert)){
                     // Contact::insert($insert);
