@@ -17,6 +17,8 @@ class Kernel extends ConsoleKernel
         //
         // Commnads\updateContactToPostGraduate::class,
         'App\Console\commands\UpdateContactToPostGraduate',
+        'App\Console\commands\SendScheduledMessages',
+        'App\Console\commands\SendAlarmMessage',
     ];
 
     /**
@@ -30,6 +32,10 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')
         //          ->hourly();
         $schedule->command('command:updateContact')
+                ->everyMinute();
+        $schedule->command('command:sendSchduledMessages')
+                ->everyMinute();
+        $schedule->command('command:sendAlarmMessage')
                 ->everyMinute();
         // $schedule->call(function () {
         //     DB::table('contacts')->whereDate('graduation_year', '<', date('Y-m-d'))->delete();

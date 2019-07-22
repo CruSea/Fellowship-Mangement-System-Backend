@@ -21,7 +21,7 @@ class UpdateContactToPostGraduate extends Command
      *
      * @var string
      */
-    protected $description = 'contact will be updated from under graduate list to post graduate list automatically when he/she graduates';
+    protected $description = 'contact will be updated from under graduate list to post graduate list automatically when the contact graduates';
 
     /**
      * Create a new command instance.

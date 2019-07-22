@@ -52,7 +52,8 @@ Route::group(['prefix' => 'user'], function() {
     
 });
 Route::get('/users', [
-    'uses' => 'UserController@getUsers']);
+    'uses' => 'UserController@getUsers'
+]);
 // Route::post('/importUsers', [
 //     'uses' => 'UserController@importExcel'
 // ]);
@@ -207,15 +208,32 @@ Route::group(['prefix' => 'event'], function() {
     Route::delete('/{id}', [
         'uses' => 'EventController@delete',
     ]);
+    Route::group(['prefix' => 'members/{name}'], function() {
+        Route::post('', [
+            'uses' => 'EventController@assignContact',
+        ]);
+        Route::get('/', [
+            'uses' => 'EventController@seeContacts',
+        ]);
+        Route::delete('/{id}', [
+            'uses' => 'EventController@deleteContact',
+        ]);
+    });
 });
 Route::get('/events', [
     'uses' => 'EventController@getEvents',
 ]);
+Route::post('event/addContact/{name}', [
+    'uses' => 'EventController@addContact',
+]);
+Route::post('event/importContacts/{name}', [
+    'uses' => 'EventController@importContactForEvent'
+]);
 
-// post graduates route
+// post GraduateControllers route
 Route::group(['prefix' => 'post-graduate'], function() {
     Route::post('/', [
-        'uses' => 'PostGraduatesController@store',
+        'uses' => 'ContactController@addContact',
     ]);
     Route::get('/{id}', [
         'uses' => 'PostGraduatesController@show',
@@ -230,3 +248,133 @@ Route::group(['prefix' => 'post-graduate'], function() {
 Route::get('/post-graduates', [
     'uses' => 'PostGraduatesController@getPostGraduates',
 ]);
+
+Route::group(['prefix' => 'post-graduat-team'], function() {
+    // Route::post('/', [
+    //     'uses' => 'TeamController@addTeam',
+    // ]);
+    Route::get('/{id}', [
+        'uses' => 'TeamController@getTeam',
+    ]);
+    // 
+    // Route::patch('/{id}', [
+    //     'uses' => 'TeamController@updateTeam',
+    // ]);
+    // Route::delete('/{id}', [
+    //     'uses' => 'TeamController@deleteTeam',
+    // ]);
+    Route::group(['prefix' => '/members/{name}'], function() {
+        // Route::post('/', [
+        //     'uses' => 'PostGraduateTeamController@addPostGraduateMember',
+        // ]);
+        Route::get('/', [
+            'uses' => 'PostGraduateTeamController@seeMembers',
+        ]);
+
+    });
+});
+
+// graduates route
+Route::group(['prefix' => 'graduate'], function () {
+    Route::post('/', [
+        'uses' => 'ContactController@addContact'
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'GraduateController@show',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'GraduateController@update'
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'GraduateController@delete',
+    ]);
+});
+Route::get('/graduates', [
+    'uses' => 'GraduateController@getGraduates',
+]);
+Route::group(['prefix' => 'scheduled-message'], function(){
+    Route::post('/team', [
+        'uses' => 'ScheduledMessageController@addMessageForTeam',
+    ]);
+    Route::post('/fellowship', [
+        'uses' => 'ScheduledMessageController@addMessageForFellowship',
+    ]);
+    Route::post('/event', [
+        'uses' => 'ScheduledMessageController@addMessageForEvent',
+    ]);
+    Route::post('/contact', [
+        'uses' => 'ScheduledMessageController@addMessageForSingleContact',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'ScheduledMessageController@getMessage',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'ScheduledMessageController@updateMessage',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'ScheduledMessageController@deleteMessage',
+    ]);
+});
+Route::get('/scheduled-messages', [
+    'uses' => 'ScheduledMessageController@getMessages',
+]);
+Route::group(['prefix' => 'alarm-message'], function() {
+    Route::post('/team', [
+        'uses' => 'AlarmMessageController@addMessageForTeam',
+    ]);
+    Route::post('/fellowship', [
+        'uses' => 'AlarmMessageController@addMessageForFellowship',
+    ]);
+    Route::post('/event', [
+        'uses' => 'AlarmMessageController@addMessageForEvent',
+    ]);
+    Route::post('/contact', [
+        'uses' => 'AlarmMessageController@addMessageForSingleContact',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'AlarmMessageController@getMessage',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'AlarmMessageController@updateMessage',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'AlarmMessageController@deleteMessage',
+    ]);
+});
+Route::get('/alarm-messages', [
+    'uses' => 'AlarmMessageController@getMessages',
+]);
+
+Route::group(['prefix' => 'send-registration-message'], function() {
+    Route::post('/team', [
+        'uses' => 'EventRegistrationController@SendRegistrationFormForTeam',
+    ]);
+    Route::post('/fellowship', [
+        'uses' => 'EventRegistrationController@sendRegistrationFormForFellowship',
+    ]);
+    Route::post('/event', [
+        'uses' => 'EventRegistrationController@sendRegistrationFormForEvent',
+    ]);
+    Route::post('/contact', [
+        'uses' => 'EventRegistrationController@sendRegistrationFormForSingleContact',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'EventRegistrationController@getEventRegistrationForm',
+    ]);
+});
+Route::get('/send-registration-messages', [
+    'uses' => 'EventRegistrationController@getEventRegistrationForms',
+]);
+Route::group(['prefix' => 'send-event-message'], function() {
+    Route::post('/', [
+        'uses' => 'SendMessageForEventRegistrationController@sendMessage'
+    ]);
+    // Route::get('/', [
+    //     // 'uses' => ''
+    // ]);
+});
+Route::group(['prefix' => 'parse-registration-message'], function() {
+    Route::post('/', [
+        'uses' => 'ParseRegistrationMessage@RegisterMembers'
+    ]);
+});

@@ -14,54 +14,6 @@ use JWTAuth;
 
 class PostGraduatesController extends Controller
 {
-    public function store() {
-    	try{
-            $user = JWTAuth::parseToken()->toUser();
-            if(!$user) {
-                return response()->json(['message' => 'authentication error', 'error' => "not authorized to add contacts"], 401);
-            }
-            $request = request()->only('full_name', 'gender', 'phone', 'email', 'acadamic_department', 'team', 'graduation_year');
-            $rule = [
-                'full_name' => 'required|string|max:255',
-                'gender' => 'required|string|max:255',
-                'acadamic_department' => 'string|max:255',
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
-                'email' => 'required|email|max:255|unique:contacts',
-                'graduation_year' => 'required|string',
-            ];
-            $validator = Validator::make($request, $rule);
-            if($validator->fails()) {
-                return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 500);
-            }
-            $postGradaute = new Contact();
-            $postGradaute->full_name = $request['full_name'];
-            $postGradaute->gender = $request['gender'];
-            $postGradaute->phone = $request['phone'];
-            $postGradaute->email = $request['email'];
-            $postGradaute->acadamic_department = $request['acadamic_department'];
-            $postGradaute->graduation_year = $request['graduation_year'].'-07-30';
-            $postGradaute->fellowship_id = $user->fellowship_id;
-            // $postGraduate->is_under_graduate = 0;
-            $postGradaute->created_by = json_encode($user);
-            $team = Team::where('name', '=', $request['team'])->first();
-
-            if($request['team'] != null && !$team) {
-                return response()->json(['message' => 'team is not found', 'error' => 'please add '. $request['team']. ' team first before adding contact to '. $request['team']. ' team'], 404);
-            }
-
-            if($postGradaute->save()) {
-                $contact_team = new ContactTeam();
-                $contact_team->team_id = $team->id;
-                $contact_team->contact_id = $postGradaute->id;
-                $contact_team->save();
-                return response()->json(['message' => 'contact added successfully'], 200);
-            }
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to save the contact'], 500);
-        }catch(Exception $ex) {
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-        }
-    	
-    }
     public function show($id) {
     	try {
     		$user = JWTAuth::parseToken()->toUser();
@@ -75,6 +27,7 @@ class PostGraduatesController extends Controller
     			if($is_post_graduate == 1) {
     				return response()->json(['message' => 'contact is under graduate'], 404);
     			}
+                $postGraduate->created_by = json_decode($postGraduate->created_by);
     			return response()->json(['post graduate' => $postGraduate], 200);
     		}
     		return response()->json(['message' => 'post graduate is not available', 'error' => 'unable to find post graduate'], 404);
@@ -86,10 +39,18 @@ class PostGraduatesController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if(!$user) {
-    			return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+    			return response()->json(['error' => 'token expired'], 401);
     		}
     		// $postGraduates = Contact::all();
     		$postGradautes = Contact::where('is_under_graduate', '=', 0)->get();
+            $count = count($postGradautes);
+            if($count == 0) {
+                return response()->json(['message' => 'post graduate not found', 'post graduate' => $postGradautes], 404);
+            }
+            for($i = 0; $i < $count; $i++) {
+                $postGradautes[$i]->created_by = json_decode($postGradautes[$i]->created_by);
+            }
+
     		return response()->json(['post graduates' => $postGradautes], 200);
     	} catch(Exception $ex) {
     		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
@@ -131,14 +92,6 @@ class PostGraduatesController extends Controller
                 $postGradaute->acadamic_department = isset($request['acadamic_department']) ? $request['acadamic_department'] : $contact->acadamic_department;
                 $postGradaute->graduation_year = isset($request['graduation_year']) ? $request['graduation_year'] : $postGraduate->graduation_year;
                 $postGraduate->team = isset($request['team']) ? $request['team'] : $postGraduate->team;
-
-	    		// $postGraduates->full_name = isset($request['full_name']) ? $request['full_name'] : $postGradaute->full_name;
-	    		// $postGradaute->gender = isset($request['gender']) ? $request['gender'] : $postGradaute->gender;
-	    		// $postGradaute->phone = isset($request['phone']) ? $request['phone'] : $postGradaute->phone;
-	    		// $postGradaute->email = isset($request['email']) ? $request['email'] : $postGradaute->email;
-	    		// $postGraduate->team = isset($request['team']) ? $request['team'] : $postGraduate->team;
-	    		// $postGraduate->acadamic_department = isset($request['acadamic_department']) ? $request['acadamic_department'] : $postGraduate->acadamic_department;
-	    		// $postGraduate->graduation_year = isset($request['graduation_year']) ? $request['graduation_year'] : $postGraduate->graduation_year;
 	    		if($postGraduate->update()) {
 	    			return response()->json(['message' => 'post graduate updated successfully'], 200);
 	    		}
@@ -159,7 +112,7 @@ class PostGraduatesController extends Controller
     		if($postGraduate instanceof Contact) {
     			$is_post_graduate = $postGraduate->is_under_graduate;
     			if($is_post_graduate == 1) {
-    				return response()->json(['message' => 'contact is under graduate', "error' => 'under graduate contact can't be deleted here"], 400);
+    				return response()->json(['message' => 'contact is under graduate', 'error' => "under graduate contact can't be deleted here"], 400);
     			}
     			if($postGraduate->delete()) {
     				return response()->json(['message' => 'postGradaute deleted successfully'], 200);

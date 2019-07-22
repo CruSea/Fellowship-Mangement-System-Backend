@@ -48,7 +48,7 @@ class TeamController extends Controller
             $team->name = $request['name'];
             $team->description = $request['description'];
             $team->fellowship_id = $fellowship_id;
-            $team->created_by = $user;
+            $team->created_by = json_encode($user);
             if($team->save()) {
                 return response()->json(['message' => 'team added successfully'], 200);
             }
@@ -62,6 +62,7 @@ class TeamController extends Controller
             if(!$team = Team::find($id)) {
                 return response()->json(['message' => 'Ooops! an error occurred', 'error' => 'team is not found'], 404);
             }
+            $team->created_by = json_decode($team->created_by);
             return response()->json(['team' => $team], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => $ex->getMessage()], 500);
@@ -69,10 +70,13 @@ class TeamController extends Controller
     }
     public function getTeams() {
         try {
-            $teams = Team::all();
+            $teams = Team::paginate(10);
             $countTeams = Team::count();
             if($countTeams == 0) {
                 return response()->json(['error' => 'team is not empty'], 404);
+            }
+            for($i = 0; $i < $countTeams; $i++) {
+                $teams[$i]->created_by = json_decode($teams[$i]->created_by);
             }
             return response()->json(['teams' => $teams], 200);
         }catch(Exception $ex) {
@@ -172,25 +176,25 @@ class TeamController extends Controller
     public function addMember(Request $request, $name) {
         try {
             $user = JWTAuth::parseToken()->toUser();
-            $contactTeam = new ContactTeam();
-            $team = DB::table('teams')->where('name', '=', $name)->first();
-            if(!$team) {
-                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
-            }
             if(!$user) {
-                return response()->json(['error' => 'user is not authenticated'], 500);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $rule = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
-                'email' => 'required|email|max:255|unique:contacts',
+                'email' => 'email|max:255|unique:contacts|nullable',
                 'graduation_year' => 'required|string',
             ];
             $validator = Validator::make($request->all(), $rule);
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 400);
+            }
+            $contactTeam = new ContactTeam();
+            $team = DB::table('teams')->where('name', '=', $name)->first();
+            if(!$team) {
+                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
             }
             
             $contact = new Contact();
@@ -199,7 +203,9 @@ class TeamController extends Controller
             $contact->phone = $request->input('phone');
             $contact->email = $request['email'];
             $contact->acadamic_department = $request->input('acadamic_department');
-            $contact->graduation_year = $request['graduation_year'];
+            $contact->graduation_year = $request['graduation_year'].'-07-30';
+            $contact->is_under_graduate = true;
+            $contact->is_this_year_gc = false;
             $contact->fellowship_id = $user->fellowship_id;
             $contact->created_by = json_encode($user);
 
@@ -212,7 +218,7 @@ class TeamController extends Controller
                     ['contact_id', '=', $contact_id],
                 ])->get();
                 if(count($contactDuplicationInOneTeam) > 0) {
-                    return response()->json(['error' => 'duplication error', 'message' => 'contact is already add to '. $team->name .' team'], 403);
+                    return response()->json(['error' => 'duplication error', 'message' => 'contact is already found in '. $team->name .' team'], 403);
                 }
                 $contactTeam->team_id = $team_id;
                 $contactTeam->contact_id = $contact_id;
@@ -229,6 +235,10 @@ class TeamController extends Controller
     }
     public function seeMembers($name) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $team = DB::table('teams')->where('name', $name)->first();
             if(!$team) { 
                 return response()->json(['message' => 'an error occurred', 'error' => 'team is not found'], 500);
@@ -239,12 +249,35 @@ class TeamController extends Controller
             if (!$contacts) {
                 return response()->json(['message' => 'something went wrong', 'error' => 'contact is not found'], 404);
             }
+
             $count = $contacts->count();
+            // $under_graduate;
             if($count == 0) {
                 return response()->json(['message' => 'contact is not found'], 404);
             }
+            $under_graduate = [];
+            for($i = 0; $i < $count; $i++) {
+                if($contacts[$i]->is_under_graduate) {
+                    $contacts_two = $contacts;
+                    $contacts[$i]->created_by = json_decode($contacts[$i]->created_by);
+                    $under_graduate[] = Contact::where([['id', $contacts[$i]->id],['is_under_graduate', 1]])->paginate(10);
+                    // $under_graduate[$i]->created_by = json_decode($under_graduate[$i]->created_by);
+                    // return response()->json(['contacts' => $contacts], 200);
+                    
+                }
+
+                
+            }
+            if(!count($under_graduate)) {
+                return response()->json(['message' => 'under graduate contact is empty'], 404);
+            }
+            // return response()->json(['count' => $under_graduate[2]], 200);
+            // for($j = 0; $j < 3; $j++) {
+            //     $under_graduate[$j]->created_by = json_decode($under_graduate[$j]->created_by);
+            // }
+
             
-            return response()->json(['contacts' => $contacts], 200);
+            return response()->json(['contacts' => $under_graduate], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -304,6 +337,10 @@ class TeamController extends Controller
             if(!$contact) {
                 return response()->json(['message' => '404 error', 'error' => 'contact is not found'], 404);
             }
+            $is_under_graduate = $contact->is_under_graduate;
+            if(!$is_under_graduate) {
+                return response()->json(['message' => 'this member is not under graduate'], 404);
+            }
            $team = DB::table('teams')->where('name', '=' , $name)->first();
            if(!$team) {
                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
@@ -325,6 +362,11 @@ class TeamController extends Controller
     public function importContactForTeam($name) {
         try {
             $user = JWTAuth::parseToken()->toUser();
+            $team = Team::where('name', '=', $name)->first();
+            if(!$team) {
+                return response()->json(['error' => 'team is not found'], 404);
+            }
+            $contactTeam = new ContactTeam();
             if($user instanceof User) {
                 if(Input::hasFile('file')) {
                     $path = Input::file('file')->getRealPath();
@@ -352,11 +394,17 @@ class TeamController extends Controller
                             if($value->graduation_year == null) {
                                 return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
                             }
-                            $insert[] = ['full_name' => $value->full_name, 'phone' => $value->phone, 'email' => $request['email'], 'team' => $request['team'], 'gender' => $value->gender, 'acadamic_department' => $acadamic_department, 'graduation_year' => $request['graduation_year'],'fellowship_id' => $user->fellowship_id, 'created_by' => $user->full_name,'created_at' => new DateTime(), 'updated_at' => new DateTime()];
+                            $insert[] = ['full_name' => $value->full_name, 'phone' => $value->phone, 'email' => $request['email'], 'gender' => $value->gender, 'acadamic_department' => $acadamic_department, 'graduation_year' => $request['graduation_year'],'fellowship_id' => $user->fellowship_id, 'created_by' => json_encode($user), 'is_under_graduate' => true,
+                                'is_this_year_gc' => false, 'created_at' => new DateTime(), 'updated_at' => new DateTime()];
                         }
                         if(!empty($insert)) {
                             $contact = new Contact();
                             $contact::insert($insert);
+
+                            $team_id = $team->id;
+                            $contact_id = $contact->id;
+                            $contactTeam->team_id = $team_id;
+                            $contactTeam->contact_id = $contact_id;
                             // DB::table('contacts')->insert($insert);
                             dd('Insert recorded successfully.');
                         }

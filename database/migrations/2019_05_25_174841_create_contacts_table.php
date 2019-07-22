@@ -21,8 +21,8 @@ class CreateContactsTable extends Migration
         $table->string('email')->unique()->nullable();
         $table->string('Acadamic_department')->nullable();
         $table->date('graduation_year');
-        $table->integer('is_under_graduate')->default(true);
-        $table->integer('is_this_year_gc')->default(false);
+        $table->integer('is_under_graduate');
+        $table->integer('is_this_year_gc');
         $table->integer('fellowship_id')->unsigned()->nullable();
         $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
         $table->json('created_by');

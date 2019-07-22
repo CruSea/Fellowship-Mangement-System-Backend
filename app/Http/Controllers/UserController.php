@@ -32,9 +32,6 @@ class UserController extends Controller
             if(!$authUser) {
                 return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
             }
-            /*
-            * email validation
-            */
             $rule = [
                 'full_name' => 'required|string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:users',
@@ -98,9 +95,10 @@ class UserController extends Controller
         try {
             $authUser = JWTAuth::parseToken()->toUser();
             if(!$authUser) {
-                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
-            $users = User::all();
+            // $users = User::all();
+            $users = User::with('roles')->paginate(10);
             return response()->json(['users' => $users], 200);
         } catch(Exception $ex) {
             return response()->json(['error' => $ex->getMessage()] ,$ex->getStatusCode());

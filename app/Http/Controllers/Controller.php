@@ -11,7 +11,7 @@ class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
 
-    public function sendPostRequest($requestUrl, $route_url, $send_post_data) {
+    public static function sendPostRequest($requestUrl, $route_url, $send_post_data) {
         $ch = curl_init($requestUrl.$route_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $send_post_data);

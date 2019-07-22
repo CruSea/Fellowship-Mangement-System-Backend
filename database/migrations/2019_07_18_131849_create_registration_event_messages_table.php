@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateSentMessagesTable extends Migration
+class CreateRegistrationEventMessagesTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,13 +13,11 @@ class CreateSentMessagesTable extends Migration
      */
     public function up()
     {
-        Schema::create('sent_messages', function (Blueprint $table) {
+        Schema::create('registration_event_messages', function (Blueprint $table) {
             $table->increments('id');
             $table->string('message');
-            $table->string('sent_to');
-            // $table->string('status');
-            $table->boolean('is_sent');
-            $table->boolean('is_delivered');
+            $table->integer('event_registrations_id')->unsigned();
+            $table->foreign('event_registrations_id')->references('id')->on('event_registrations')->onDelete('cascade');
             $table->integer('sms_port_id')->unsigned()->nullable();
             $table->foreign('sms_port_id')->references('id')->on('sms_ports')->onDelete('cascade');
             $table->json('sent_by');
@@ -34,6 +32,6 @@ class CreateSentMessagesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('sent_messages');
+        Schema::dropIfExists('registration_event_messages');
     }
 }
