@@ -122,7 +122,7 @@ class UserController extends Controller
             // check weather the email exists before
             $check_email_existance = User::where('email', '=',$request['email'])->exists();
             if($check_email_existance && $request['email'] != $getUser->email) {
-                return response()->json(['error' => 'Ooops! this email is occupied'], 400);
+                return response()->json(['error' => 'The email has already been taken'], 400);
             }
             // check weather the phone exists before
             $check_phone_existance = User::where('phone', $request['phone'])->exists();

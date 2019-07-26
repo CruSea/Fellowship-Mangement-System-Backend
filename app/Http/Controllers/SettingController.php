@@ -17,31 +17,31 @@ class SettingController extends Controller
     }
     public function createSetting() {
         try {
-            $request = request()->only('name', 'value');
+            $request = request()->only('value');
             $rule = [
-                'name' => 'required|string|unique:settings',
-                'value' => 'required'
+                // 'name' => 'required|string|unique:settings',
+                'value' => 'required|string|min:1'
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
-            $old_setting = Setting::where('name', '=', $request['name'])->first();
+            $old_setting = Setting::where('name', '=', "API_KEY")->first();
             if($old_setting instanceof Setting) {
-                $old_setting->name = $request['name'];
-                $old_setting->valud = $request['value'];
+                $old_setting->name = $old_setting->name;
+                $old_setting->value = $request['value'];
                 if($old_setting->update()) {
-                    return response()->json(['message' => 'setting successfully updated', 'setting' => $old_setting], 200);
+                    return response()->json(['message' => 'setting successfully updated'], 200);
                 }
                 else {
                     return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'failed to create setting'], 500);
                 }
             } else {
                 $new_setting = new Setting();
-                $new_setting->name = $request['name'];
+                $new_setting->name = "API_KEY";
                 $new_setting->value = $request['value'];
                 if($new_setting->save()) {
-                    return response()->json(['message' => 'setting successfully created', 'setting' => $new_setting], 200);
+                    return response()->json(['message' => 'setting successfully created'], 200);
                 } 
                 else {
                     return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'failed to create setting'], 500);
@@ -76,23 +76,23 @@ class SettingController extends Controller
     }
     public function updateSetting($id) {
         try {
-            $request = request()->only('name', 'value');
+            $request = request()->only('value');
             $old_setting = Setting::find($id);
 
             
             if($old_setting instanceof Setting) {
                 $rule = [
-                    'name' => 'string',
+                    'value' => 'required|string|min:1',
                 ];
                 $validator = Validator::make($request, $rule);
                 if($validator->fails()) {
                     return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
                 }
-                $check_setting_existance = Setting::where('name', '=', $request['name'])->exists();
-                if($check_setting_existance && $request['name'] != $old_setting->name) {
-                    return response()->json(['message' => 'duplication error', 'error' => 'The setting name has already been taken.'], 400);
-                }
-                $old_setting->name = isset($request['name']) ? $request['name'] : $old_setting->name;
+                // $check_setting_existance = Setting::where('name', '=', $request['name'])->exists();
+                // if($check_setting_existance && $request['name'] != $old_setting->name) {
+                //     return response()->json(['message' => 'duplication error', 'error' => 'The setting name has already been taken.'], 400);
+                // }
+                // $old_setting->name = isset($request['name']) ? $request['name'] : $old_setting->name;
                 $old_setting->value = isset($request['value']) ? $request['value'] : $old_setting->value;
                 if($old_setting->update()) {
                     return response()->json(['message' => 'setting updated successfully'], 200);
@@ -112,11 +112,14 @@ class SettingController extends Controller
                 $response = $this->sendGetRequest($this->root_url, 'api_request/campaigns?API_KEY='.$API_KEY->value);
                 $decoded_response = json_decode($response);
                 if($decoded_response) {
-                    if(isset($decoded_response->campaings)) {
-                        $campaigns = $decoded_response->campaings;
-                        return response()->json(['campaigns' => $campaigns], 200);
+                    if(isset($decoded_response->campaigns)) {
+                        $campaigns = $decoded_response->campaigns;
+                        for($i = 0; $i < count($campaigns); $i++) {
+                            $campaign[] = ['id' => $campaigns[$i]->id, 'name' => $campaigns[$i]->name];
+                        }
+                        return response()->json(['campaigns' => $campaign], 200);
                     } else {
-                        return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
+                        return response()->json(['response' => count($decoded_response)], 500);
                     }
                 } else {
                     return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
@@ -138,9 +141,12 @@ class SettingController extends Controller
                 if($decoded_response) {
                     if(isset($decoded_response->sms_ports)) {
                         $smsPorts = $decoded_response->sms_ports;
-                        return response()->json(['sms ports' => $smsPorts], 200);
+                        for($i = 0; $i < count($smsPorts); $i++) {
+                            $sms_name[] = ['id' => $smsPorts[$i]->id, 'name' => $smsPorts[$i]->name];
+                        }
+                        return response()->json(['sms ports' => $sms_name], 200);
                     }
-                    return response()->json(['message' => 'Ooops! something went wrong', 'error' => $decoded_response], 500);
+                    return response()->json(['response' => $decoded_response], 500);
                 }
                 return response()->json(['message' => 'error found', 'error' => $decoded_response], 500);
             }
@@ -166,5 +172,4 @@ class SettingController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-    
 }

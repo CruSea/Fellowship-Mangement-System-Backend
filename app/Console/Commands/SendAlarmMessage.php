@@ -3,11 +3,13 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use App\AlarmMessage;
 use App\Setting;
 use App\SmsPort;
 use App\Contact;
 use App\ContactTeam;
+use App\Fellowship;
 use App\Event;
 use App\ContactEvent;
 use App\Team;
@@ -62,13 +64,19 @@ class SendAlarmMessage extends Command
             if(!$sms_port) {
                 return response()->json(['error' => 'sms port is not found'], 404);
             }
-
             if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($alarm->send_time))) == 0) {
                 if($alarm->sent_to != null) {
-                    // dd(date('H:i'). ' wow');
+                    $contains_name = Str::contains($alarm->message, '{name}');
+                    $replaceName = $alarm->message;
+                    $contact = Contact::where('phone', '=', $alarm->sent_to)->first();
+                    if($contact instanceof Contact) {
+                        if($contains_name) {
+                            $replaceName = Str::replaceArray('{name}', [$contact->full_name], $alarm->message);
+                        }
+                    }
                     $message_send_request = array();
                     $message_send_request['API_KEY'] = $setting->value;
-                    $message_send_request['message'] = $alarm->message;
+                    $message_send_request['message'] = $replaceName;
                     $message_send_request['sent_to'] = $alarm->sent_to;
                     $message_send_request['campaign_id'] = $sms_port->negarit_campaign_id;
                     $negarit_response = \App\Http\Controllers\Controller::sendPostRequest($this->negarit_api_url, 
@@ -78,13 +86,15 @@ class SendAlarmMessage extends Command
                     if($decoded_response) { 
                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                         $send_message = $decoded_response->sent_message;
-                        // dd('message sent successfully');
+                        dd('message sent successfully');
                         // return response()->json(['message' => 'message sent successfully',
                         // 'sent message' => $send_message], 200);
                     }
+                    dd('message sent successfully too');
                     // dd('message not sent successfully '. $decoded_response);
                     // return response()->json(['message' => "Ooops! something went wrong", 'error' => $decoded_response], 500);
                     }
+                    dd('message is not sent');
                 // dd('message not not sent successfully '. $decoded_response);
                 // return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
                 }
@@ -92,9 +102,23 @@ class SendAlarmMessage extends Command
                                         
                     $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
                     $alarm->team_id)->select('contact_id')->get())->get();
-                    for($j = 0; $j < count($contacts); $j++) {
-                        $contact = $contacts[$j];
-                        $insert[] = ['id' => $j+1, 'message' => $alarm->message, 'phone' => $contact->phone];
+                    $team = Team::find($alarm->team_id);
+
+                    if(count($contacts) == 0) {
+                        return response()->json(['message' => 'member is not found '.$team->name .' team'], 404);
+                    }
+                    $contains_name = Str::contains($alarm->message, '{name}');
+                    if($contains_name) {
+                        for($j = 0; $j < count($contacts); $j++) {
+                            $contact = $contacts[$j];
+                            $replaceName = Str::replaceArray('{name}', [$contact->full_name], $alarm->message);
+                            $insert[] = ['id' => $j+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                        }
+                    } else {
+                        for($j = 0; $j < count($contacts); $j++) {
+                            $contact = $contacts[$j];
+                            $insert[] = ['id' => $j+1, 'message' => $alarm->message, 'phone' => $contact->phone];
+                        }
                     }
                     $negarit_message_request = array();
                     $negarit_message_request['API_KEY'] = $setting->value;
@@ -105,15 +129,19 @@ class SendAlarmMessage extends Command
                     'api_request/sent_multiple_messages', 
                     json_encode($negarit_message_request));
                     $decoded_response = json_decode($negarit_response);
+                    // dd('about here');
                     if($decoded_response) { 
                         if(isset($decoded_response->status)) {
-                            // dd('message sent to the team successfully');
+                            dd('message sent to the team successfully');
                             // return response()->json(['response' => $decoded_response], 200);
                         }
                         else {
+                            dd('message sent successfully to team 2');
                             // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                         }
+                        dd('message is not sent');
                     } else {
+                        dd('not sent');
                         // dd('message sent to the team successfully three');
                         // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                     } 
@@ -123,9 +151,22 @@ class SendAlarmMessage extends Command
                     $decoded_value = json_decode($alarm->sent_by);
                     $fellowship_id = $decoded_value->fellowship_id;
                     $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
-                    for($k = 0; $k < count($contacts); $k++) {
-                        $contact = $contacts[$k];
-                        $insert[] = ['id' => $k+1, 'message' => $alarm->message, 'phone' => $contact->phone];
+                    $fellowship = Fellowship::find($fellowship_id);
+                    if(count($contacts) == 0) {
+                        return response()->json(['message' => 'contact is not found in '. $fellowship->university_name. ' fellowship'], 404);
+                    }
+                    $contains_name = Str::contains($alarm->message, '{name}');
+                    if($contains_name) {
+                        for($k = 0; $k < count($contacts); $k++) {
+                            $contact = $contacts[$k];
+                            $replaceName = Str::replaceArray('{name}', [$contact->full_name], $alarm->message);
+                            $insert[] = ['id' => $k+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                        }
+                    } else {
+                        for($k = 0; $k < count($contacts); $k++) {
+                            $contact = $contacts[$k];
+                            $insert[] = ['id' => $k+1, 'message' => $alarm->message, 'phone' => $contact->phone];
+                        }
                     }
                     $negarit_message_request = array();
                     $negarit_message_request['API_KEY'] = $setting->value;
@@ -152,9 +193,22 @@ class SendAlarmMessage extends Command
                 }
                 if($alarm->event_id != null) {
                     $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $alarm->event_id)->select('contact_id')->get())->get();
-                    for($m = 0; $m < count($contacts); $m++) {
-                        $contact = $contacts[$m];
-                        $insert[] = ['id' => $m+1, 'message' => $alarm->message, 'phone' => $contact->phone];
+                    $event = Event::find($alarm->event_id);
+                    if(count($contacts) == 0) {
+                        return response()->json(['message' => 'contact is not found '. $event->event_name.' event'], 404);
+                    }
+                    $contains_name = Str::contains($alarm->message, '{name}');
+                    if($contains_name) {
+                        for($m = 0; $m < count($contacts); $m++) {
+                            $contact = $contacts[$m];
+                            $replaceName = Str::replaceArray('{name}', [$contact->full_name], $alarm->message);
+                            $insert[] = ['id' => $m+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                        }
+                    } else {
+                        for($m = 0; $m < count($contacts); $m++) {
+                            $contact = $contacts[$m];
+                            $insert[] = ['id' => $m+1, 'message' => $alarm->message, 'phone' => $contact->phone];
+                        }
                     }
                     $negarit_message_request = array();
                     $negarit_message_request['API_KEY'] = $setting->value;

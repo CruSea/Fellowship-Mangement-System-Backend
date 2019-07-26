@@ -54,6 +54,9 @@ Route::group(['prefix' => 'user'], function() {
 Route::get('/users', [
     'uses' => 'UserController@getUsers'
 ]);
+Route::patch('/fellowship/{id}', [
+    'uses' => 'FellowshipController@update',
+]);
 // Route::post('/importUsers', [
 //     'uses' => 'UserController@importExcel'
 // ]);
@@ -77,6 +80,9 @@ Route::get('/contacts', [
 ]);
 Route::post('/importContacts', [
     'uses' => 'ContactController@importContact'
+]);
+Route::get('/exportContacts', [
+    'uses' => 'ContactController@exportContact',
 ]);
 // Route::post('/addTeam', [
 //     'uses' => 'ContactController@addTeam',
@@ -143,6 +149,30 @@ Route::get('/team-messages', [
 ]);
 Route::delete('/team-message/{id}', [
     'uses' => 'MessageController@deleteTeamMessage'
+]);
+Route::post('/post-graduate-team-message', [
+    'uses' => 'MessageController@sendPostGraduateTeamMessage',
+]);
+Route::get('/post-graduate-team-message', [
+    'uses' => 'MessageController@getPostGraduateTeamMessage',
+]);
+Route::post('/fellowship-message', [
+    'uses' => 'MessageController@sendFellowshipMessage',
+]);
+Route::get('/fellowship-message', [
+    'uses' => 'MessageController@getFellowshipMessage',
+]);
+Route::post('/post-graduate-fellowship-message', [
+    'uses' => 'MessageController@sendPostGraduateFellowshipMessage',
+]);
+Route::get('/post-graduate-fellowship-message', [
+    'uses' => 'MessageController@getPostGraduateFellowshipMessage',
+]);
+Route::post('/event-message', [
+    'uses' => 'MessageController@sendEventMessage',
+]);
+Route::get('/event-message', [
+    'uses' => 'MessageController@getEventMessage',
 ]);
 Route::get('/messages', [
     'uses' => 'MessageController@getContactsMessages',
@@ -351,9 +381,6 @@ Route::group(['prefix' => 'send-registration-message'], function() {
     ]);
     Route::post('/fellowship', [
         'uses' => 'EventRegistrationController@sendRegistrationFormForFellowship',
-    ]);
-    Route::post('/event', [
-        'uses' => 'EventRegistrationController@sendRegistrationFormForEvent',
     ]);
     Route::post('/contact', [
         'uses' => 'EventRegistrationController@sendRegistrationFormForSingleContact',

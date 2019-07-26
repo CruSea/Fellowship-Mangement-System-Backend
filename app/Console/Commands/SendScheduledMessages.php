@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use App\ScheduleMessage;
 use App\Setting;
 use App\SmsPort;
@@ -11,6 +12,7 @@ use App\ContactTeam;
 use App\Event;
 use App\ContactEvent;
 use App\Team;
+use App\Fellowship;
 use Carbon\Carbon;
 // use App\Http\Controllers\Controller;
 
@@ -75,9 +77,17 @@ class SendScheduledMessages extends Command
                         if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($daily->sent_time))) == 0) {
                             if($daily->sent_to != null) {
                                 // dd('sent to working '. $daily->sent_to);
+                                $contains_name = Str::contains($daily->message, '{name}');
+                                $replaceName = $daily->message;
+                                $contact = Contact::where('phone', '=', $daily->sent_to)->first();
+                                if($contact instanceof Contact) {
+                                    if($contains_name) {
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $daily->message);
+                                    }
+                                }
                                 $message_send_request = array();
                                 $message_send_request['API_KEY'] = $setting->value;
-                                $message_send_request['message'] = $daily->message;
+                                $message_send_request['message'] = $replaceName;
                                 $message_send_request['sent_to'] = $daily->sent_to;
                                 $message_send_request['campaign_id'] = $sms_port->negarit_campaign_id;
                                 $negarit_response = \App\Http\Controllers\Controller::sendPostRequest($this->negarit_api_url, 
@@ -98,9 +108,22 @@ class SendScheduledMessages extends Command
                                 // dd('team works '. $daily->team_id);
                                 $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
                                 $daily->team_id)->select('contact_id')->get())->get();
-                                for($j = 0; $j < count($contacts); $j++) {
-                                    $contact = $contacts[$j];
-                                    $insert[] = ['id' => $j+1, 'message' => $daily->message, 'phone' => $contact->phone];
+                                $team = Team::find($daily->team_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '. $team->name. ' team'], 404);
+                                }
+                                $contains_name = Str::contains($daily->message, '{name}');
+                                if($contains_name) {
+                                    for($j = 0; $j < count($contacts); $j++) {
+                                        $contact = $contacts[$j];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $daily->message);
+                                        $insert[] = ['id' => $j+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                } else {
+                                    for($j = 0; $j < count($contacts); $j++) {
+                                        $contact = $contacts[$j];
+                                        $insert[] = ['id' => $j+1, 'message' => $daily->message, 'phone' => $contact->phone];
+                                    }
                                 }
 
                                 $negarit_message_request = array();
@@ -123,10 +146,22 @@ class SendScheduledMessages extends Command
                                 $decoded_value = json_decode($daily->sent_by);
                                 $fellowship_id = $decoded_value->fellowship_id;
                                 $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
-
-                                for($m = 0; $m < count($contacts); $m++) {
-                                    $contact = $contacts[$m];
-                                    $insert[] = ['id' => $m+1, 'message' => $daily->message, 'phone' => $contact->phone];
+                                $fellowship = Fellowship::find($fellowship_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '. $fellowship->university_name. ' fellowship'], 404);
+                                }
+                                $contains_name = Str::contains($daily->message, '{name}');
+                                if($contains_name) {
+                                    for($m = 0; $m < count($contacts); $m++) {
+                                        $contact = $contacts[$m];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $daily->message);
+                                        $insert[] = ['id' => $m+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                } else {
+                                    for($m = 0; $m < count($contacts); $m++) {
+                                        $contact = $contacts[$m];
+                                        $insert[] = ['id' => $m+1, 'message' => $daily->message, 'phone' => $contact->phone];
+                                    }
                                 }
                                 $negarit_message_request = array();
                                 $negarit_message_request['API_KEY'] = $setting->value;
@@ -145,9 +180,23 @@ class SendScheduledMessages extends Command
                             }
                             if($daily->event_id != null) {
                                 $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $daily->event_id)->select('contact_id')->get())->get();
-                                for($m = 0; $m < count($contacts); $m++) {
-                                    $contact = $contacts[$m];
-                                    $insert[] = ['id' => $m+1, 'message' => $daily->message, 'phone' => $contact->phone];
+                                $event = Event::find($daily->event_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '. $event->event_name.' event'], 404);
+                                }
+                                $contains_name = Str::contains($daily->message, '{name}');
+                                if($contains_name) {
+                                    for($m = 0; $m < count($contacts); $m++) {
+                                        $contact = $contacts[$m];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $daily->message);
+                                        $insert[] = ['id' => $m+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                }
+                                else {
+                                    for($m = 0; $m < count($contacts); $m++) {
+                                        $contact = $contacts[$m];
+                                        $insert[] = ['id' => $m+1, 'message' => $daily->message, 'phone' => $contact->phone];
+                                    }
                                 }
                                 $negarit_message_request = array();
                                 $negarit_message_request['API_KEY'] = $setting->value;
@@ -192,10 +241,17 @@ class SendScheduledMessages extends Command
                             // dd('end date '. $weekly->end_date. ' now date '. date('Y-m-d'). ' time '. date('H:i'));
                             // sent team message;
                             if($weekly->sent_to != null) {
-                                dd('weekly works '. $weekly->sent_to);
+                                $contains_name = Str::contains($weekly->message, '{name}');
+                                $replaceName = $weekly->message;
+                                $contact = Contact::where('phone', '=', $weekly->sent_to)->first();
+                                if($contact instanceof Contact) {
+                                    if($contains_name) {
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $weekly->message);
+                                    }
+                                }
                                 $message_send_request = array();
                                 $message_send_request['API_KEY'] = $setting->value;
-                                $message_send_request['message'] = $weekly->message;
+                                $message_send_request['message'] = $replaceName;
                                 $message_send_request['sent_to'] = $weekly->sent_to;
                                 $message_send_request['campaign_id'] = $sms_port->negarit_campaign_id;
                                 $negarit_response = \App\Http\Controllers\Controller::sendPostRequest($this->negarit_api_url, 
@@ -217,18 +273,25 @@ class SendScheduledMessages extends Command
                                 // return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
                             }
                             if($weekly->team_id != null) {
-                                dd('weekly works '. $weekly->team_id);
                                 $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
                                 $team_id)->select('contact_id')->get())->get();
-                                // $count = count($contacts);
-                                /***********************************************
-                                // sent_to must be checked
-                                // since it is not saved for every phone
-                                // 
-                                **************************/
-                                for($j = 0; $j < count($contacts); $j++) {
-                                    $contact = $contacts[$j];
-                                    $insert[] = ['id' => $j+1, 'message' => $weekly->message, 'phone' => $contact->phone];
+                                $team = Team::find($weekly->team_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '. $team->name. ' team'], 404);
+                                }
+                                $contains_name = Str::contains($weekly->message, '{name}');
+                                if($contains_name) {
+                                    for($j = 0; $j < count($contacts); $j++) {
+                                        $contact = $contacts[$j];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $weekly->message);
+                                        $insert[] = ['id' => $j+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                }
+                                else {
+                                    for($j = 0; $j < count($contacts); $j++) {
+                                        $contact = $contacts[$j];
+                                        $insert[] = ['id' => $j+1, 'message' => $weekly->message, 'phone' => $contact->phone];
+                                    }
                                 }
                                 $negarit_message_request = array();
                                 $negarit_message_request['API_KEY'] = $setting->value;
@@ -257,9 +320,22 @@ class SendScheduledMessages extends Command
                                 $decoded_value = json_decode($weekly->sent_by);
                                 $fellowship_id = $decoded_value->fellowship_id;
                                 $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
-                                for($k = 0; $k < count($contacts); $k++) {
-                                    $contact = $contacts[$k];
-                                    $insert[] = ['id' => $k+1, 'message' => $weekly->message, 'phone' => $contact->phone];
+                                $fellowship = Fellowship::find($fellowship_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '.$fellowship->university_name. ' fellowship'], 404);
+                                }
+                                $contains_name = Str::contains($weekly->message, '{name}');
+                                if($contains_name) {
+                                    for($k = 0; $k < count($contacts); $k++) {
+                                        $contact = $contacts[$k];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $weekly->message);
+                                        $insert[] = ['id' => $k+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                } else {
+                                    for($k = 0; $k < count($contacts); $k++) {
+                                        $contact = $contacts[$k];
+                                        $insert[] = ['id' => $k+1, 'message' => $weekly->message, 'phone' => $contact->phone];
+                                    }
                                 }
                                 $negarit_message_request = array();
                                 $negarit_message_request['API_KEY'] = $setting->value;
@@ -285,11 +361,23 @@ class SendScheduledMessages extends Command
                                 }
                             }
                             if($weekly->event_id != null) {
-                                dd('event works '. $weekly->event_id);
                                 $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $weekly->event_id)->select('contact_id')->get())->get();
-                                for($m = 0; $m < count($contacts); $m++) {
-                                    $contact = $contacts[$m];
-                                    $insert[] = ['id' => $m+1, 'message' => $weekly->message, 'phone' => $contact->phone];
+                                $event = Event::find($weekly->event_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '. $event->event_name.' event'], 404);
+                                }
+                                $contains_name = Str::contains($weekly->message, '{name}');
+                                if($contains_name) {
+                                    for($m = 0; $m < count($contacts); $m++) {
+                                        $contact = $contacts[$m];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $weekly->message);
+                                        $insert[] = ['id' => $m+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                } else {
+                                    for($m = 0; $m < count($contacts); $m++) {
+                                        $contact = $contacts[$m];
+                                        $insert[] = ['id' => $m+1, 'message' => $weekly->message, 'phone' => $contact->phone];
+                                    }
                                 }
                                 $negarit_message_request = array();
                                 $negarit_message_request['API_KEY'] = $setting->value;
@@ -336,9 +424,17 @@ class SendScheduledMessages extends Command
                     if((Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($monthly->start_date))) % 28 == 0) {
                         if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($monthly->sent_time))) == 0) {
                             if($monthly->sent_to != null) {
+                                $contains_name = Str::contains($monthly->message, '{name}');
+                                $replaceName = $monthly->message;
+                                $contact = Contact::where('phone', '=', $monthly->sent_to)->first();
+                                if($contact instanceof Contact) {
+                                    if($contains_name) {
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $monthly->message);
+                                    }
+                                }
                                 $message_send_request = array();
                                 $message_send_request['API_KEY'] = $setting->value;
-                                $message_send_request['message'] = $monthly->message;
+                                $message_send_request['message'] = $replaceName;
                                 $message_send_request['sent_to'] = $monthly->sent_to;
                                 $message_send_request['campaign_id'] = $sms_port->negarit_campaign_id;
 
@@ -356,10 +452,22 @@ class SendScheduledMessages extends Command
                             if($monthly->team_id != null) {
                                 $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
                                 $monthly->team_id)->select('contact_id')->get())->get();
-                            
-                                for($j = 0; $j < count($contacts); $j++) {
-                                    $contact = $contacts[$j];
-                                    $insert[] = ['id' => $j+1, 'message' => $monthly->message, 'phone' => $contact->phone];
+                                $team = Team::find($monthly->team_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '. $team->name. ' team'], 404);
+                                }
+                                $contains_name = Str::contains($monthly->message, '{name}');
+                                if($contains_name) {
+                                    for($j = 0; $j < count($contacts); $j++) {
+                                        $contact = $contacts[$j];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $monthly->message);
+                                        $insert[] = ['id' => $j+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                } else {
+                                    for($j = 0; $j < count($contacts); $j++) {
+                                        $contact = $contacts[$j];
+                                        $insert[] = ['id' => $j+1, 'message' => $monthly->message, 'phone' => $contact->phone];
+                                    }
                                 }
                                 $negarit_message_request = array();
                                 $negarit_message_request['API_KEY'] = $setting->value;
@@ -380,10 +488,22 @@ class SendScheduledMessages extends Command
                                 $decoded_value = json_decode($monthly->sent_by);
                                 $fellowship_id = $decoded_value->fellowship_id;
                                 $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
-
-                                for($k = 0; $k < count($contacts); $k++) {
-                                    $contact = $contacts[$k];
-                                    $insert[] = ['id' => $k+1, 'message' => $monthly->message, 'phone' => $contact->phone];
+                                $fellowship = Fellowship::find($fellowship_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '.$fellowship->university_name.' fellowship'], 404);
+                                }
+                                $contains_name = Str::contains($monthly->message, '{name}');
+                                if($contains_name) {
+                                    for($k = 0; $k < count($contacts); $k++) {
+                                        $contact = $contacts[$k];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $monthly->message);
+                                        $insert[] = ['id' => $k+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                } else {
+                                    for($k = 0; $k < count($contacts); $k++) {
+                                        $contact = $contacts[$k];
+                                        $insert[] = ['id' => $k+1, 'message' => $monthly->message, 'phone' => $contact->phone];
+                                    }
                                 }
                                 $negarit_message_request = array();
                                 $negarit_message_request['API_KEY'] = $setting->value;
@@ -402,9 +522,22 @@ class SendScheduledMessages extends Command
                             }
                             if($monthly->event_id != null) {
                                 $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $monthly->event_id)->select('contact_id')->get())->get();
-                                for($m = 0; $m < count($contacts); $m++) {
-                                    $contact = $contacts[$m];
-                                    $insert[] = ['id' => $m+1, 'message' => $monthly->message, 'phone' => $contact->phone];
+                                $event = Event::find($monthly->event_id);
+                                if(count($contacts) == 0) {
+                                    return response()->json(['message' => 'member is not found in '. $event->event_name.' event'], 404);
+                                }
+                                $contains_name = Str::contains($monthly->message, '{name}');
+                                if($contains_name) {
+                                    for($m = 0; $m < count($contacts); $m++) {
+                                        $contact = $contacts[$m];
+                                        $replaceName = Str::replaceArray('{name}', [$contact->full_name], $monthly->message);
+                                        $insert[] = ['id' => $m+1, 'message' => $replaceName, 'phone' => $contact->phone];
+                                    }
+                                } else {
+                                    for($m = 0; $m < count($contacts); $m++) {
+                                        $contact = $contacts[$m];
+                                        $insert[] = ['id' => $m+1, 'message' => $monthly->message, 'phone' => $contact->phone];
+                                    }
                                 }
                                 $negarit_message_request = array();
                                 $negarit_message_request['API_KEY'] = $setting->value;

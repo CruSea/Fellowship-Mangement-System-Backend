@@ -1,10 +1,10 @@
-    <?php
+<?php
 
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateTeamMessagesTable extends Migration
+class CreateEventMessagesTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,12 +13,11 @@ class CreateTeamMessagesTable extends Migration
      */
     public function up()
     {
-        Schema::create('team_messages', function (Blueprint $table) {
+        Schema::create('event_messages', function (Blueprint $table) {
             $table->increments('id');
             $table->string('message');
-            $table->integer('team_id')->unsigned();
-            $table->foreign('team_id')->references('id')->on('teams')->onDelete('cascade');
-            $table->boolean('under_graduate');
+            $table->integer('event_id')->unsigned();
+            $table->foreign('event_id')->references('id')->on('teams')->onDelete('cascade');
             $table->json('sent_by');
             $table->timestamps();
         });
@@ -31,6 +30,6 @@ class CreateTeamMessagesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('team_messages');
+        Schema::dropIfExists('event_messages');
     }
 }

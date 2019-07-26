@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\User;
 use App\Contact;
 use App\ContactTeam;
@@ -158,13 +159,31 @@ class EventController extends Controller
                 if(!$event) {
                     return response()->json(['error' => 'event is not found'], 404);
                 }
+                $phone_number  = $request->input('phone');
+                $contact0 = Str::startsWith($request->input('phone'), '0');
+                $contact9 = Str::startsWith($request->input('phone'), '9');
+                $contact251 = Str::startsWith($request->input('phone'), '251');
+                if($contact0) {
+                    $phone_number = Str::replaceArray("0", ["+251"], $request->input('phone'));
+                }
+                else if($contact9) {
+                    $phone_number = Str::replaceArray("9", ["+2519"], $request->input('phone'));
+                }
+                else if($contact251) {
+                    $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
+                }
+                // check weather the phone exists before
+                $check_phone_existance = Contact::where('phone', $phone_number)->exists();
+                if($check_phone_existance) {
+                    return response()->json(['error' => 'The phone has already been taken'], 400);
+                }
                 $contact = new Contact();
                 $contact->full_name = $request->input('full_name');
                 $contact->gender = $request->input('gender');
-                $contact->phone = $request->input('phone');
-                $contact->email = $request['email'];
+                $contact->phone = $phone_number;
+                $contact->email = $request->input('email');
                 $contact->acadamic_department = $request->input('acadamic_department');
-                $contact->graduation_year = $request['graduation_year'].'-07-30';
+                $contact->graduation_year = $request->input('graduation_year').'-07-30';
                 $contact->is_under_graduate = true;
                 $contact->is_this_year_gc = false;
                 $contact->fellowship_id = $user->fellowship_id;
@@ -210,7 +229,20 @@ class EventController extends Controller
                 if($validator->fails()) {
                     return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
                 }
-                $contact = Contact::where('phone', '=', $request['phone'])->first();
+                $phone_number  = $request['phone'];
+                $contact0 = Str::startsWith($request['phone'], '0');
+                $contact9 = Str::startsWith($request['phone'], '9');
+                $contact251 = Str::startsWith($request['phone'], '251');
+                if($contact0) {
+                    $phone_number = Str::replaceArray("0", ["+251"], $request['phone']);
+                }
+                else if($contact9) {
+                    $phone_number = Str::replaceArray("9", ["+2519"], $request['phone']);
+                }
+                else if($contact251) {
+                    $phone_number = Str::replaceArray("251", ['+251'], $request['phone']);
+                }
+                $contact = Contact::where('phone', '=', $phone_number)->first();
                 if(!$contact) {
                     return response()->json(['error' => 'contact is not found'], 404);
                 }

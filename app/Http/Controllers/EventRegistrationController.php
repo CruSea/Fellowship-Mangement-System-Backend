@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use App\EventRegistration;
 use App\User;
 use App\Team;
@@ -27,9 +28,10 @@ class EventRegistrationController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$request = request()->only('event_registration_title', 'port_name', 'team', 'message');
+    			$request = request()->only('event', 'port_name', 'team', 'message');
     			$rule = [
-    				'event_registration_title' => 'required|string|min:1|unique:event_registrations',
+    				// 'event_registration_title' => 'required|string|min:1|unique:event_registrations',
+    				'event' => 'required|string|min:1',
     				'port_name' => 'required|string|min:1',
     				'team' => 'required|string|min:1',
     				'message' => 'required|string|min:1',
@@ -37,6 +39,10 @@ class EventRegistrationController extends Controller
     			$validator = Validator::make($request, $rule);
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
+    			}
+    			$event = Event::where('event_name', '=', $request['event'])->first();
+    			if(!$event) {
+    				return response()->json(['error' => 'event is not found'], 404);
     			}
     			$team = Team::where('name', '=', $request['team'])->first();
     			if($team instanceof Team) {
@@ -47,7 +53,7 @@ class EventRegistrationController extends Controller
 		    			$sms_port_id = $sms_port->id;
 
     					$event_registration = new EventRegistration();
-		    			$event_registration->event_registration_title = $request['event_registration_title'];
+		    			$event_registration->event = $request['event'];
 		    			$event_registration->team_id = $team_id;
 		    			$event_registration->message = $request['message'];
 		    			$event_registration->sent_by = $user;
@@ -122,9 +128,10 @@ class EventRegistrationController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$request = request()->only('event_registration_title', 'port_name', 'message');
+    			$request = request()->only('event', 'port_name', 'message');
     			$rule = [
-    				'event_registration_title' => 'required|string|min:1|unique:event_registrations',
+    				// 'event_registration_title' => 'required|string|min:1|unique:event_registrations',
+    				'event' => 'required|string|min:1',
     				'port_name' => 'required|string|min:1',
     				'message' => 'required|string|min:1',
     			];
@@ -132,13 +139,17 @@ class EventRegistrationController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
+    			$event = Event::where('event_name', '=', $request['event'])->first();
+    			if(!$event) {
+    				return response()->json(['error' => 'event not found'], 400);
+    			}
     			$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
     			if($sms_port instanceof SmsPort) {
     				$fellowship_id = $user->fellowship_id;
     				$sms_port_id = $sms_port->id;
 
     				$event_registration = new EventRegistration();
-	    			$event_registration->event_registration_title = $request['event_registration_title'];
+	    			$event_registration->event = $request['event'];
 	    			$event_registration->fellowship_id = $fellowship_id;
 	    			$event_registration->message = $request['message'];
 	    			$event_registration->sent_by = $user;
@@ -205,102 +216,14 @@ class EventRegistrationController extends Controller
     		return response()->json(['messag' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
     	}
     }
-    public function sendRegistrationFormForEvent() {
-    	try {
-            $user = JWTAuth::parseToken()->toUser();
-            if($user instanceof User) {
-                $request = request()->only('event_registration_title', 'port_name', 'event', 'message');
-    			$rule = [
-    				'event_registration_title' => 'required|string|min:1|unique:event_registrations',
-    				'port_name' => 'required|string|min:1',
-    				'event' => 'required|string|min:1',
-    				'message' => 'required|string|min:1',
-    			];
-    			$validator = Validator::make($request, $rule);
-    			if($validator->fails()) {
-    				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
-    			}
-    			$event = Event::where('event_name', '=', $request['event'])->first();
-    			if($event instanceof Event) {
-    				$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
-    				if($sms_port instanceof SmsPort) {
-    					$event_id = $event->id;
-		    			$sms_port_id = $sms_port->id;
-
-    					$event_registration = new EventRegistration();
-		    			$event_registration->event_registration_title = $request['event_registration_title'];
-		    			$event_registration->event_id = $event_id;
-		    			$event_registration->message = $request['message'];
-		    			$event_registration->sent_by = $user;
-		    			$event_registration->save();
-
-		    			$contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $event_id)->select('contact_id')->get())->get();
-
-		    			$setting = Setting::where('name', '=', 'API_KEY')->first();
-		    			if(!$setting) {
-		    				return response()->json(['error' => 'Api Key is not found'], 404);
-		    			}
-
-		    			for($i = 0; $i < count($contacts); $i++) {
-		    				$contact = $contacts[$i];
-		    				$sent_message = new SentMessage([
-		    					'message' => $request['message'],
-		    					'sent_to' => $contact->phone,
-		    					'is_sent' => false,
-		    					'is_delivered' => false,
-		    					'sms_port_id' => $sms_port_id,
-		    					'sent_by' => $user,
-		    				]);
-		    				if(!$sent_message->save()) {
-		    					return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not sent'], 500);
-
-		    				}
-	    					$insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
-		    			}
-		    			$negarit_message_request = array();
-			            $negarit_message_request['API_KEY'] = $setting->value;
-			            $negarit_message_request['campaign_id'] = $sms_port->negarit_campaign_id;
-			            $negarit_message_request['messages'] = $insert;
-
-			            $negarit_response = $this->sendPostRequest($this->negarit_api_url, 
-			                'api_request/sent_multiple_messages', 
-			                json_encode($negarit_message_request));
-			            $decoded_response = json_decode($negarit_response);
-			            if($decoded_response) { 
-			                
-			                if(isset($decoded_response->status)) {
-			                    $sent_message->is_sent = true;
-			                    $sent_message->is_delivered = true;
-			                    $sent_message->update();
-			                    return response()->json(['response' => $decoded_response], 200);
-			                }
-			                else {
-			                    return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
-			                }
-			            } else {
-			                return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
-			            }
-    				} else {
-    					return response()->json(['error' => 'sms port is not found'], 404);
-    				}
-    			} else {
-    				return response()->json(['error' => 'event is not found'], 404);
-    			}
-
-            } else {
-                return response()->json(['error' => 'token expired'], 401);
-            }
-        } catch(Exception $ex) {
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-        }
-    }
     public function sendRegistrationFormForSingleContact() {
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$request = request()->only('event_registration_title', 'port_name', 'sent_to','message');
+    			$request = request()->only('event', 'port_name', 'sent_to','message');
     			$rule = [
-    				'event_registration_title' => 'required|string|min:1|unique:event_registrations',
+    				// 'event_registration_title' => 'required|string|min:1|unique:event_registrations',
+    				'event' => 'required|string|min:1',
     				'port_name' => 'required|string|min:1',
     				'message' => 'required|string|min:1',
     				'sent_to' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
@@ -309,13 +232,30 @@ class EventRegistrationController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
+    			$event = Event::where('event_name', '=', $request['event'])->first();
+    			if(!$event) {
+    				return response()->json(['error' => 'event not found'], 404);
+    			}
     			$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
     			if($sms_port instanceof SmsPort) {
     				$sms_port_id = $sms_port->id;
+    				$phone_number  = $request['sent_to'];
+	                $contact0 = Str::startsWith($request['sent_to'], '0');
+	                $contact9 = Str::startsWith($request['sent_to'], '9');
+	                $contact251 = Str::startsWith($request['sent_to'], '251');
+	                if($contact0) {
+	                    $phone_number = Str::replaceArray("0", ["+251"], $request['sent_to']);
+	                }
+	                else if($contact9) {
+	                    $phone_number = Str::replaceArray("9", ["+2519"], $request['sent_to']);
+	                }
+	                else if($contact251) {
+	                    $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
+	                }
 
     				$sent_message = new SentMessage([
     					'message' => $request['message'],
-    					'sent_to' => $request['sent_to'],
+    					'sent_to' => $phone_number,
     					'is_sent' => false,
     					'is_delivered' => false,
     					'sms_port_id' => $sms_port_id,
@@ -372,6 +312,7 @@ class EventRegistrationController extends Controller
     			if(!$event_registration) {
     				return response()->json(['error' => 'event registration is not found'], 404);
     			}
+    			$event_registration->sent_by = json_decode($event_registration->sent_by);
     			return response()->json(['event registration' => $event_registration], 200);
     		} else {
     			return response()->json(['error' => 'token expired'], 401);
@@ -384,8 +325,15 @@ class EventRegistrationController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$event_registrations = new EventRegistration();
-    			return response()->json(['event registrations' => $event_registrations::paginate(10)], 200);
+    			$event_registrations = EventRegistration::paginate(10);
+    			$count = EventRegistration::count();
+    			if($count == 0) {
+    				return response()->json(['response' => 'event registration empty'], 404);
+    			}
+    			for($i = 0; $i < $count; $i++) {
+    				$event_registrations[$i]->sent_by = json_decode($event_registrations[$i]->sent_by);
+    			}
+    			return response()->json(['event registrations' => $event_registrations], 200);
     		} else {
     			return response()->json(['error' => 'token expired'], 401);
     		}

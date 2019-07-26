@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use App\User;
 use App\AlarmMessage;
 use App\Team;
@@ -169,11 +170,30 @@ class AlarmMessageController extends Controller
     			}
     			$sms_port_id = $sms_port->id;
 
+    			$phone_number  = $request['sent_to'];
+	            $contact0 = Str::startsWith($request['sent_to'], '0');
+	            $contact9 = Str::startsWith($request['sent_to'], '9');
+	            $contact251 = Str::startsWith($request['sent_to'], '251');
+	            if($contact0) {
+	                $phone_number = Str::replaceArray("0", ["+251"], $request['sent_to']);
+	            }
+	            else if($contact9) {
+	                $phone_number = Str::replaceArray("9", ["+2519"], $request['sent_to']);
+	            }
+	            else if($contact251) {
+	                $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
+	            }
+	            // check weather the phone exists before
+                $check_phone_existance = AlarmMessage::where('sent_to', $phone_number)->exists();
+                if($check_phone_existance) {
+                    return response()->json(['error' => 'The phone has already been taken'], 400);
+                }
+
     			$alaram_message = new AlarmMessage();
     			$alaram_message->send_date = $request['send_date'];
     			$alaram_message->send_time = $request['send_time'];
     			$alaram_message->message = $request['message'];
-    			$alaram_message->sent_to = $request['sent_to'];
+    			$alaram_message->sent_to = $phone_number;
     			$alaram_message->sms_port_id = $sms_port_id;
     			$alaram_message->sent_by = $user;
     			if($alaram_message->save()) {
