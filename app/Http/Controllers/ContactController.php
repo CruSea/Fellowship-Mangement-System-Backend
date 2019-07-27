@@ -115,12 +115,13 @@ class ContactController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
 
-            // $contacts = Contact::all();
-            $contacts = Contact::where('is_under_graduate', '=', 1)->paginate(10);
+            $contacts = Contact::all();
+            // $contacts = Contact::where('is_under_graduate', '=', 1)->paginate(10);
             $countContact = Contact::count();
             if($countContact == 0) {
                 return response()->json(['message' => 'contact is not available'], 404);
             }
+            $under_graduate = [];
             for($i = 0; $i < $countContact; $i++) {
                 $contacts[$i]->created_by = json_decode($contacts[$i]->created_by);
             }
@@ -199,8 +200,6 @@ class ContactController extends Controller
         if(!$user) {
             return response()->json(['error' => 'token expired'], 401);
         }
-        // $contact = Contact::all();
-        // dd($contact->phone);
         $count_add_contacts = 0;
 		if(Input::hasFile('file')){
             $path = Input::file('file')->getRealPath();
@@ -210,86 +209,25 @@ class ContactController extends Controller
             $request = request()->only($headerRow[0], $headerRow[1], $headerRow[2], $headerRow[3], $headerRow[4], $headerRow[5], $headerRow[6]);
 			if(!empty($data) && $data->count()){
 				foreach ($data as $key => $value) {
-                    // check weather the phone exists before
-                    // $check_phone_existance = DB::table('users')->where('phone', $value->phone)->exists();
-                    // if($check_phone_existance) {
-                    //     return response()->json(['error' => 'Ooops! This phone number is already in the database', 'header row' => $headerRow], 500);
-                    // }
-                    // // check weather the email exists before
-                    // $check_email_existance = DB::table('users')->where('email', $value->email)->exists();
-                    // if($check_email_existance) {
-                    //     return response()->json(['error' => 'Ooops! this email is occupied'], 500);
-                    // }
-                
-                    /*
-                    * phone validation
-                    */
-                    // $phone_rule = [
-                    //     $headerRow[2] => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
-                    // ];
-                    // $phone_validation = CsvValidator::make($path, $phone_rule);
-                    // if($phone_validation->fails()){
-                    //     return response()->json(['message' => 'phone validation error', 'error' => 'the phone number is not valid'], 500);
-                    // }
-                    // $phone_validation = Validator::make($request, $phone_rule);
-                    // if($phone_validation->fails()) {
-                    //     return response()->json(['message' => 'phone validation error', 'error' => 'the phone number is not valid'], 500);
-                    // }
-                    /*
-                    * email validation
-                    */
-                    /************************************------------------------------------------ */
-                    // $email_rule = [
-                    //     $headerRow[4] => 'required|email|string|max:255',
-                    // ];
-                    // $email_validation = Validator::make($request, $email_rule);
-                    // if($email_validation->fails()) {
-                    //     return response()->json(['message' => 'email validation error', 'erorr' => 'The email is not valid'], 500);
-                    // }
-                    // // first name, last name, and university validation
-                    // $rules = [
-                    //     $headerRow[0] => 'required|string|max:255',
-                    //     $headerRow[1] => 'required|string|max:255',
-                    //     $headerRow[2] => 'required|string|max:255',
-                    // ];
-                    // $validation = Validator::make($request, $rules);
-                    // if($validation->fails()) {
-                    //     return response()->json(['message' => 'validation error','error' => 'validation error'], 500);
-                    // }
-                    /************************************------------------------------------------ */
-
-                    /* csv validation =================================================================*/
-                    // $rules = [
-                    //     'firstname' => 'required|string|max:255',
-                    //     'lastname' => 'required|string|max:255',
-                    //     'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
-                    //     'university' => 'required|string|max:255',
-                    // ];
-                    // //return response()->json(['data' => $data, 'path' => $path2], 200);
-                    // $csvValidator = CsvValidator::make($input, $rules);
-                    // if($csvValidator->fails()) {
-                    //     return response()->json(['message' => 'validation error', 'error' => 'values are not valid'], 500);
-                    // }
-                    /* csv validation =================================================================*/
-
                     // phone validation 
                     if($value->phone == null) {
                         dd('validation error phone can not be null');
                         return response()->json(['message' => "validation error", 'error' => "phone can't be null"], 403);
                     }
-                    // if($value->phone == $contact->phone) {
-                    //     dd('phone duplication error.');
-                    //     return response()->json(['message' => 'duplication error', 'error' => 'Phone has already been taken.'], 400);
-                    // }
-                    // full_name validation
                     if($value->full_name == null) {
                         return response()->json(['message' => 'validation error', 'error' => "full name can't be null"], 403);
                     }
                     if($value->gender == null) {
                         return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 403);
                     }
+                    if($value->acadamic_department == null) {
+                        return response()->json(['message' => 'validation error', 'error' => "acadamic department year can't be null"], 404);
+                    }
+                    if($value->graduation_year == null) {
+                        return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
+                    }
                     $team = Team::where('name', '=', $value->team)->first();
-                    // check weather the phone exists before
+                    
                     $phone_number  = $value->phone;
                     $contact0 = Str::startsWith($value->phone, '0');
                     $contact9 = Str::startsWith($value->phone, '9');
@@ -303,8 +241,11 @@ class ContactController extends Controller
                     else if($contact251) {
                         $phone_number = Str::replaceArray("251", ['+251'], $value->phone);
                     }
+                    // check weather the phone exists before
                     $check_phone_existance = Contact::where('phone', $phone_number)->exists();
-                    if(!$check_phone_existance) {
+                    // check weather the email exists before
+                    $check_email_existance = Contact::where([['email', '=',$value->email],['email', '!=', null]])->exists();
+                    if(!$check_phone_existance && !$check_email_existance && strlen($phone_number) <= 13) {
                         $contact = new Contact();
                         $contact->full_name = $value->full_name;
                         $contact->gender = $value->gender;
@@ -326,19 +267,8 @@ class ContactController extends Controller
                             $count_add_contacts++;
                         }
                     }
-                    
-                    // $insert[] = ['full_name' => $value->full_name, 'gender' => $value->gender, 
-                    // 'phone' => $value->phone, 'email' => $value->email, 'acadamic_department' => $value->acadamic_department, 'graduation_year' => $value->graduation_year.'-07-30', 'fellowship_id' => $user->fellowship_id, 'is_under_graduate' => true,
-                    //     'is_this_year_gc' => false, 'created_by' => json_encode($user),'created_at' => new DateTime(), 'updated_at' => new DateTime()];
-                    // $lastContact = Contact::latest()->first();
-                    // $insertTeam[] = ['team_id' => $team->id, 'contact_id' => $lastContact->id];
                 }
                 dd($count_add_contacts.' contacts add successfully');
-				// if(!empty($insert)){
-                    // Contact::insert($insert);
-					// DB::table('contacts')->insert($insert);
-     //                dd('Insert Record successfully.');
-				// }
             }
             else {
                 return response()->json(['message' => 'file is empty', 'error' => 'No contact is found in the file'], 404);

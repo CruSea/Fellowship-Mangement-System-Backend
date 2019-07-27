@@ -64,7 +64,7 @@ class MessageController extends Controller
             if(!$setting) {
                 return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
             }
-            $contains_name = Str::contains($request['message'], '{name}');
+            
             $phone_number  = $request['sent_to'];
             $contact0 = Str::startsWith($request['sent_to'], '0');
             $contact9 = Str::startsWith($request['sent_to'], '9');
@@ -79,6 +79,7 @@ class MessageController extends Controller
                 $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
             }
 
+            $contains_name = Str::contains($request['message'], '{name}');
             $contact = Contact::where('phone', '=', $phone_number)->first();
             if($contact instanceof Contact) {
                 if($contains_name) {
@@ -563,6 +564,10 @@ class MessageController extends Controller
                 $fellowship_message->under_graduate = true;
                 $fellowship_message->save();
                 $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
+
+                if(count($contacts) == 0) {
+                    return response()->json(['message' => 'member is not found in '. $fellowship->university_name. ' fellowship'], 404);
+                }
 
                 $setting = Setting::where('name', '=', 'API_KEY')->first();
                 if(!$setting) {

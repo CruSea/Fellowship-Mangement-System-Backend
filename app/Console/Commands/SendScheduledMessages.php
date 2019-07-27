@@ -12,7 +12,8 @@ use App\ContactTeam;
 use App\Event;
 use App\ContactEvent;
 use App\Team;
-use App\Fellowship;
+use App\Fellowship; 
+use App\Notification;
 use Carbon\Carbon;
 // use App\Http\Controllers\Controller;
 
@@ -40,7 +41,6 @@ class SendScheduledMessages extends Command
      */
 
     protected $negarit_api_url;
-
     public function __construct()
     {
         parent::__construct();
@@ -59,7 +59,7 @@ class SendScheduledMessages extends Command
         if(!$setting) {
             return response()->json(['error' => 'API KEY is not found, please add API KEY frist'], 404);
         }
-
+        
         $daily_scheduled_message = ScheduleMessage::where('type', '=', 'daily')->get();
         $count_daily_message = count($daily_scheduled_message);
         if($count_daily_message == 0) {
@@ -71,7 +71,7 @@ class SendScheduledMessages extends Command
                 if(!$sms_port) {
                     return response()->json(['error' => 'sms port is not found'], 404);
                 }
-                if((Carbon::parse($daily->end_date))->diffInDays(Carbon::parse(date('Y-m-d'))) >= 0) {
+                if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($daily->end_date, false) >= 0) {
                     $DiffInDate = Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($daily->start_date));
                     if(($DiffInDate) % 1 == 0 && $DiffInDate >= 0) {
                         if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($daily->sent_time))) == 0) {
@@ -215,6 +215,12 @@ class SendScheduledMessages extends Command
                             }
                         }
                     }
+                } else if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($daily->end_date, false) == -1) {
+                    if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($daily->sent_time))) == 0) {
+                        $notification = new Notification();
+                        $notification->notification = "daily scheduled '".$daily->message. "' message has expired. end date was ". $daily->end_date;
+                        $notification->save();
+                    }
                 }
             }
         }
@@ -226,20 +232,17 @@ class SendScheduledMessages extends Command
             // 
         } else {
             // dd(date('H:i'));
-            for($i = 0; $i < count($weekly_scheduled_message) + 1; $i++) {
+            for($i = 0; $i < count($weekly_scheduled_message); $i++) {
                 $weekly = $weekly_scheduled_message[$i];
                 $team_id = $weekly->team_id;
                 $sms_port = SmsPort::find($weekly->sms_port_id);
                 if(!$sms_port) {
                     return response()->json(['error' => 'sms port is not found'], 404);
                 }
-                if((Carbon::parse($weekly->end_date))->diffInDays(Carbon::parse(date('Y-m-d'))) >= 0) {
+                if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($weekly->end_date, false) >= 0) {
                     $DiffInDate = Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($weekly->start_date));
                     if(($DiffInDate) % 7 == 0 && $DiffInDate >= 0) {
-                            // dd('end date '. $weekly->end_date. ' now date '. date('Y-m-d'). ' time '. date('H:i'));
                         if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($weekly->sent_time))) == 0) {
-                            // dd('end date '. $weekly->end_date. ' now date '. date('Y-m-d'). ' time '. date('H:i'));
-                            // sent team message;
                             if($weekly->sent_to != null) {
                                 $contains_name = Str::contains($weekly->message, '{name}');
                                 $replaceName = $weekly->message;
@@ -261,16 +264,8 @@ class SendScheduledMessages extends Command
                                 if($decoded_response) { 
                                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                                         $send_message = $decoded_response->sent_message;
-                                        // dd('message sent successfully');
-                                        // return response()->json(['message' => 'message sent successfully',
-                                        // 'sent message' => $send_message], 200);
                                     }
-                                    //     dd('message not sent successfully '. $decoded_response);
-
-                                    // return response()->json(['message' => "Ooops! something went wrong", 'error' => $decoded_response], 500);
                                 }
-                                // dd('message not not sent successfully '. $decoded_response);
-                                // return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
                             }
                             if($weekly->team_id != null) {
                                 $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
@@ -305,15 +300,7 @@ class SendScheduledMessages extends Command
 
                                 if($decoded_response) { 
                                     if(isset($decoded_response->status)) {
-                                        // dd('message sent to the team successfully');
-                                        // return response()->json(['response' => $decoded_response], 200);
                                     }
-                                    else {
-                                        // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
-                                    }
-                                } else {
-                                    // dd('message sent to the team successfully three');
-                                    // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                                 } 
                             }
                             if($weekly->fellowship_id != null) {
@@ -348,16 +335,7 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
                                     if(isset($decoded_response->status)) {
-                                        // dd('message sent to the team successfully');
-                                        // return response()->json(['response' => $decoded_response], 200);
                                     }
-                                    else {
-                                        // dd('message sent to the fellowship successfully two');
-                                        // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
-                                    }
-                                } else {
-                                    // dd('message sent to the team successfully three');
-                                    // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                                 }
                             }
                             if($weekly->event_id != null) {
@@ -390,21 +368,19 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
                                     if(isset($decoded_response->status)) {
-                                        // dd('message sent to the event successfully');
-                                        // return response()->json(['response' => $decoded_response], 200);
                                     }
-                                    else {
-                                        // dd('message sent to the team successfully two');
-                                        // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
-                                    }
-                                } else {
-                                    // dd('message sent to the team successfully three');
-                                    // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                                 }
                             }
                         }
                     }
-                }
+                } 
+                else if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($weekly->end_date, false) == -1) {
+                    if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($weekly->sent_time))) == 0) {
+                        $notification = new Notification();
+                        $notification->notification = "weekly scheduled '".$weekly->message. "' message has expired. end date was ". $weekly->end_date;
+                        $notification->save();
+                    } else {dd(date('H:i'));}
+                } 
             }
         }
 
@@ -420,7 +396,7 @@ class SendScheduledMessages extends Command
                 if(!$sms_port) {
                     return response()->json(['error' => 'sms port is not found'], 404);
                 }
-                if((Carbon::parse($monthly->end_date))->diffInDays(Carbon::parse(date('Y-m-d'))) >= 0) {
+                if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($monthly->end_date, false) >= 0) {
                     if((Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($monthly->start_date))) % 28 == 0) {
                         if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($monthly->sent_time))) == 0) {
                             if($monthly->sent_to != null) {
@@ -556,7 +532,13 @@ class SendScheduledMessages extends Command
                             }
                         }
                     }
-                }
+                } else if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($monthly->end_date, false) == -1) {
+                    if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($monthly->sent_time))) == 0) {
+                        $notification = new Notification();
+                        $notification->notification = "monthly scheduled '".$monthly->message. "' message has expired. end date was ". $monthly->end_date;
+                        $notification->save();
+                    }
+                } 
             }
         }
     }

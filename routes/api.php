@@ -54,7 +54,7 @@ Route::group(['prefix' => 'user'], function() {
 Route::get('/users', [
     'uses' => 'UserController@getUsers'
 ]);
-Route::patch('/fellowship/{id}', [
+Route::patch('/fellowship', [
     'uses' => 'FellowshipController@update',
 ]);
 // Route::post('/importUsers', [
@@ -392,14 +392,14 @@ Route::group(['prefix' => 'send-registration-message'], function() {
 Route::get('/send-registration-messages', [
     'uses' => 'EventRegistrationController@getEventRegistrationForms',
 ]);
-Route::group(['prefix' => 'send-event-message'], function() {
-    Route::post('/', [
-        'uses' => 'SendMessageForEventRegistrationController@sendMessage'
-    ]);
+// Route::group(['prefix' => 'send-event-message'], function() {
+//     Route::post('/', [
+//         'uses' => 'SendMessageForEventRegistrationController@sendMessage'
+//     ]);
     // Route::get('/', [
     //     // 'uses' => ''
     // ]);
-});
+// });
 Route::group(['prefix' => 'parse-registration-message'], function() {
     Route::post('/', [
         'uses' => 'ParseRegistrationMessage@RegisterMembers'

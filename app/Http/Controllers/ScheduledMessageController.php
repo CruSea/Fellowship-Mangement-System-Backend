@@ -188,13 +188,27 @@ class ScheduledMessageController extends Controller
     			if(Carbon::parse($request['start_date'])->diffInDays(Carbon::parse($request['end_date']), false) < 0) {
     				return response()->json(['error' => "end date can't be sooner than start date"], 400);
     			}
+    			$phone_number  = $request['sent_to'];
+	            $contact0 = Str::startsWith($request['sent_to'], '0');
+	            $contact9 = Str::startsWith($request['sent_to'], '9');
+	            $contact251 = Str::startsWith($request['sent_to'], '251');
+	            if($contact0) {
+	                $phone_number = Str::replaceArray("0", ["+251"], $request['sent_to']);
+	            }
+	            else if($contact9) {
+	                $phone_number = Str::replaceArray("9", ["+2519"], $request['sent_to']);
+	            }
+	            else if($contact251) {
+	                $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
+	            }
+
     			$shceduled_message = new ScheduleMessage();
     			$shceduled_message->type = $request['type'];
     			$shceduled_message->start_date = $request['start_date'];
     			$shceduled_message->end_date = $request['end_date'];
     			$shceduled_message->sent_time = $request['sent_time'];
     			$shceduled_message->message = $request['message'];
-    			$shceduled_message->sent_to = $request['sent_to'];
+    			$shceduled_message->sent_to = $phone_number;
     			$shceduled_message->sent_by = $user;
     			if($shceduled_message->save()) {
     				return response()->json(['message' => 'message scheduled successfully'], 200);

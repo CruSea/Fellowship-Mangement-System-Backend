@@ -9,7 +9,7 @@ use App\Fellowship;
 use JWTAuth;
 class FellowshipController extends Controller
 {
-    public function update($id) {
+    public function update() {
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
@@ -23,7 +23,8 @@ class FellowshipController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$fellowship = Fellowship::find($id);
+                $fellowship_id = $user->fellowship_id;
+    			$fellowship = Fellowship::find($fellowship_id);
     			$fellowship->university_name = $request['university_name'];
     			$fellowship->university_city = $request['university_city'];
     			$fellowship->specific_place = $request['specific_place'];

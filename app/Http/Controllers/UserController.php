@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use App\User;
 use App\Role;
 use App\UserRole;
@@ -44,15 +45,29 @@ class UserController extends Controller
             if($validation->fails()) {
                 return response()->json(['message' => 'validation error', 'erorr' => $validation->messages()], 500);
             }
-            $role = Role::where('name', '=', $request['role'])->first();
-            if($request['role'] == 'super-admin') {
+            $phone_number  = $request->input('phone');
+            $contact0 = Str::startsWith($request->input('phone'), '0');
+            $contact9 = Str::startsWith($request->input('phone'), '9');
+            $contact251 = Str::startsWith($request->input('phone'), '251');
+            if($contact0) {
+                $phone_number = Str::replaceArray("0", ["+251"], $request->input('phone'));
+            }
+            else if($contact9) {
+                $phone_number = Str::replaceArray("9", ["+2519"], $request->input('phone'));
+            }
+            else if($contact251) {
+                $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
+            }
+            
+            $role = Role::where('name', '=', $request->input('role'))->first();
+            if($request->input('role') == 'super-admin') {
                 return response()->json(['message' => 'role is not found', 'error' => 'please enter a right role'], 404);
             }
             if($role instanceof Role) {
                 // $role_id = $role->id;
                 $user = new User();
                 $user->full_name = $request->input('full_name');
-                $user->phone = $request->input('phone');
+                $user->phone = $phone_number;
                 $user->email = $request->input('email');
                 $user->fellowship_id = $authUser->fellowship_id;
                 $user->password = bcrypt($request->input('password'));
@@ -107,17 +122,30 @@ class UserController extends Controller
     protected function updateUser() {
         try {
             $getUser = JWTAuth::parseToken()->toUser();
-            $request = request()->only('full_name', 'phone', 'email');
+            $request = request()->only('full_name', 'phone', 'email', 'role');
             $rules = [
                 'full_name' => 'required|string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
                 'email' => 'required|email|max:255',
-                'role' => 'required|email|max:255',
+                'role' => 'required|string|max:255',
 
             ];
             $validator = Validator::make($request, $rules);
             if($validator->fails()) {
                 return response()->json(['error' => 'validation error', 'message' => $validator->messages()], 500);
+            }
+            $phone_number  = $request['phone'];
+            $contact0 = Str::startsWith($request['phone'], '0');
+            $contact9 = Str::startsWith($request['phone'], '9');
+            $contact251 = Str::startsWith($request['phone'], '251');
+            if($contact0) {
+                $phone_number = Str::replaceArray("0", ["+251"], $request['phone']);
+            }
+            else if($contact9) {
+                $phone_number = Str::replaceArray("9", ["+2519"], $request['phone']);
+            }
+            else if($contact251) {
+                $phone_number = Str::replaceArray("251", ['+251'], $request['phone']);
             }
             // check weather the email exists before
             $check_email_existance = User::where('email', '=',$request['email'])->exists();
@@ -125,8 +153,8 @@ class UserController extends Controller
                 return response()->json(['error' => 'The email has already been taken'], 400);
             }
             // check weather the phone exists before
-            $check_phone_existance = User::where('phone', $request['phone'])->exists();
-            if($check_phone_existance && $request['phone'] != $getUser->phone) {
+            $check_phone_existance = User::where('phone', $phone_number)->exists();
+            if($check_phone_existance && $phone_number != $getUser->phone) {
                 return response()->json(['error' => 'The phone has already been taken.'], 400);
             }
             $oldUser = User::find($getUser->id);
@@ -134,7 +162,7 @@ class UserController extends Controller
             
             if($oldUser instanceof User) {
                 $oldUser->full_name = isset($request['full_name']) ? $request['full_name'] : $oldUser->full_name;
-                $oldUser->phone = isset($request['phone']) ? $request['phone'] : $oldUser->phone;
+                $oldUser->phone = isset($request['phone']) ? $phone_number : $oldUser->phone;
                 $oldUser->email = isset($request['email']) ? $request['email'] : $oldUser->email;
 
                 $role = Role::where('name', '=', $request['role'])->first();
@@ -324,78 +352,4 @@ class UserController extends Controller
             return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => $ex->getMessage], $ex->getStatusCode());
         }
     }
-    protected function importExcel()
-	{
-        
-		// if(Input::hasFile('file')){
-		// 	$path = Input::file('file')->getRealPath();
-		// 	$data = Excel::load($path, function($reader) {
-        //     })->get();
-        //     $headerRow = $data->first()->keys();
-        //     $request = request()->only($headerRow[0], $headerRow[1], $headerRow[2], $headerRow[3], $headerRow[4], $headerRow[5]);
-		// 	if(!empty($data) && $data->count()){
-		// 		foreach ($data as $key => $value) {
-        //             // check weather the phone exists before
-        //             // $check_phone_existance = DB::table('users')->where('phone', $value->phone)->exists();
-        //             // if($check_phone_existance) {
-        //             //     return response()->json(['error' => 'Ooops! This phone number is already in the database', 'header row' => $headerRow], 500);
-        //             // }
-        //             // // check weather the email exists before
-        //             // $check_email_existance = DB::table('users')->where('email', $value->email)->exists();
-        //             // if($check_email_existance) {
-        //             //     return response()->json(['error' => 'Ooops! this email is occupied'], 500);
-        //             // }
-                
-        //             /*
-        //             * phone validation
-        //             */
-        //             $phone_rule = [
-        //                 $headerRow[2] => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9',
-        //             ];
-        //             // $phone_validation = CsvValidator::make($path, $phone_rule);
-        //             // if($phone_validation->fails()){
-        //             //     return response()->json(['message' => 'phone validation error', 'error' => 'the phone number is not valid'], 500);
-        //             // }
-        //             // $phone_validation = Validator::make($request, $phone_rule);
-        //             // if($phone_validation->fails()) {
-        //             //     return response()->json(['message' => 'phone validation error', 'error' => 'the phone number is not valid'], 500);
-        //             // }
-        //             /*
-        //             * email validation
-        //             */
-        //             /************************************------------------------------------------ */
-        //             // $email_rule = [
-        //             //     $headerRow[4] => 'required|email|string|max:255',
-        //             // ];
-        //             // $email_validation = Validator::make($request, $email_rule);
-        //             // if($email_validation->fails()) {
-        //             //     return response()->json(['message' => 'email validation error', 'erorr' => 'The email is not valid'], 500);
-        //             // }
-        //             // // first name, last name, and university validation
-        //             // $rules = [
-        //             //     $headerRow[0] => 'required|string|max:255',
-        //             //     $headerRow[1] => 'required|string|max:255',
-        //             //     $headerRow[2] => 'required|string|max:255',
-        //             // ];
-        //             // $validation = Validator::make($request, $rules);
-        //             // if($validation->fails()) {
-        //             //     return response()->json(['message' => 'validation error','error' => 'validation error'], 500);
-        //             // }
-        //             /************************************------------------------------------------ */
-        //             $insert[] = ['firstname' => $value->firstname, 'lastname' => $value->lastname, 
-        //             'phone' => $value->phone, 'university' => $value->university, 'email' => $value->email, 'password' => bcrypt($value->password)];
-        //         }
-		// 		if(!empty($insert)){
-		// 			DB::table('users')->insert($insert);
-        //             dd('Insert Record successfully.');
-        //             return response()->json(['message' => 'user added successfully'], 200);
-		// 		}
-        //     }
-        //     else {
-        //         return response()->json(['message' => 'file is empty', 'error' => 'No user is found in the file'], 404);
-        //     }
-        // }
-        // return response()->json(['message' => 'File not found', 'error' => 'User File is not provided'], 404);
-		// //return back();
-	}
 }

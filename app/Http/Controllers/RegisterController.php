@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\User;
-use App\Role;
-use App\UserRole;
-use App\Fellowship;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use App\User;
+use App\Role;
+use App\UserRole;
+use App\Fellowship;
 use DateTime;
 
 class RegisterController extends Controller
@@ -60,6 +62,19 @@ class RegisterController extends Controller
             if($validator->fails()) {
                 return response()->json(['error' => 'validation error', 'message' => $validator->messages()], 500);
             }
+            $phone_number  = $request->input('phone');
+            $contact0 = Str::startsWith($request->input('phone'), '0');
+            $contact9 = Str::startsWith($request->input('phone'), '9');
+            $contact251 = Str::startsWith($request->input('phone'), '251');
+            if($contact0) {
+                $phone_number = Str::replaceArray("0", ["+251"], $request->input('phone'));
+            }
+            else if($contact9) {
+                $phone_number = Str::replaceArray("9", ["+2519"], $request->input('phone'));
+            }
+            else if($contact251) {
+                $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
+            }
             
             $fellowship = new Fellowship();
             $fellowship->university_name = $request->input('university_name');
@@ -68,7 +83,7 @@ class RegisterController extends Controller
             if($fellowship->save()) {
                 $user = new User();
                 $user->full_name = $request->input('full_name');
-                $user->phone = $request->input('phone');
+                $user->phone = $phone_number;
                 $user->email = $request->input('email');
                 $user->fellowship_id = $fellowship->id;
                 $user->password = bcrypt($request->input('password'));

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Contact;
 use App\ContactTeam;
 use App\Team;
@@ -13,56 +14,6 @@ use App\Fellowship;
 use JWTAuth;
 class GraduateController extends Controller
 {
-	// store method is not necessary (because graduete can be assigned directrly in 
-	// contact controller @addContact method)
-    // public function store() {
-    // 	try {
-    // 		$user = JWTAuth::parseToken()->toUser();
-    // 		if($user instanceof User) {
-    // 			$request = request()->only('full_name', 'gender', 'phone', 'email', 'acadamic_department', 'team', 'graduation_year');
-	   //          $rule = [
-	   //              'full_name' => 'required|string|max:255',
-	   //              'gender' => 'required|string|max:255',
-	   //              'acadamic_department' => 'string|max:255',
-	   //              'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
-	   //              'email' => 'required|email|max:255|unique:contacts',
-	   //              'graduation_year' => 'required|string',
-	   //          ];
-	   //          $validator = Validator::make($request, $rule);
-	   //          if($validator->fails()) {
-	   //              return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 500);
-	   //          }
-
-	   //          $graduateContact = new Contact();
-	   //          $graduateContact->full_name = $request['full_name'];
-	   //          $graduateContact->gender = $request['gender'];
-	   //          $graduateContact->phone = $request['phone'];
-	   //          $graduateContact->email = $request['email'];
-	   //          $graduateContact->acadamic_department = $request['acadamic_department'];
-	   //          $graduateContact->graduation_year = $request['graduation_year'].'-07-30';
-	   //          $graduateContact->fellowship_id = $user->fellowship_id;
-	   //          $graduateContact->created_by = json_encode($user);
-	   //          $team = Team::where('name', '=', $request['team'])->first();
-
-	   //          if($request['team'] != null && !$team) {
-	   //              return response()->json(['message' => 'team is not found', 'error' => 'please add '. $request['team']. ' team first before adding contact to '. $request['team']. ' team'], 404);
-	   //          }
-
-	   //          if($graduateContact->save()) {
-	   //              $contact_team = new ContactTeam();
-	   //              $contact_team->team_id = $team->id;
-	   //              $contact_team->contact_id = $contact->id;
-	   //              $contact_team->save();
-	   //              return response()->json(['message' => 'contact added successfully'], 200);
-	   //          }
-	   //          return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to save the contact'], 500);
-    // 		} else {
-    // 			return response()->json(['error' => 'token expired'], 401);
-    // 		}
-    // 	} catch(Exception $ex) {
-    // 		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-    // 	}
-    // }
     public function show($id) {
     	try {
 			$user = JWTAuth::parseToken()->toUser();
@@ -110,7 +61,7 @@ class GraduateController extends Controller
                 return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
             }
 
-            $request = request()->only('full_name', 'gender', 'phone', 'acadamic_department', 'graduation_year');
+            $request = request()->only('full_name', 'gender', 'phone', 'email', 'acadamic_department', 'graduation_year');
             $contact = Contact::find($id);
             
             if($contact instanceof Contact) {
@@ -129,15 +80,37 @@ class GraduateController extends Controller
                 if($validator->fails()) {
                     return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 500);
                 }
+                $phone_number  = $request['phone'];
+                $contact0 = Str::startsWith($request['phone'], '0');
+                $contact9 = Str::startsWith($request['phone'], '9');
+                $contact251 = Str::startsWith($request['phone'], '251');
+                if($contact0) {
+                    $phone_number = Str::replaceArray("0", ["+251"], $request['phone']);
+                }
+                else if($contact9) {
+                    $phone_number = Str::replaceArray("9", ["+2519"], $request['phone']);
+                }
+                else if($contact251) {
+                    $phone_number = Str::replaceArray("251", ['+251'], $request['phone']);
+                }
                 // check weather the phone exists before
-                $check_phone_existance = DB::table('contacts')->where('phone', $request['phone'])->exists();
-                if($check_phone_existance && $request['phone'] != $contact->phone) {
+                $check_phone_existance = Contact::where('phone', $phone_number)->exists();
+                if($check_phone_existance && $phone_number != $contact->phone) {
                     return response()->json(['error' => 'The phone has already been taken'], 400);
+                }
+                // check email existance before
+                if($request['email'] != null) {
+                    $check_email_existance = Contact::where('email', '=',$request['email'])->exists();
+                    if($check_email_existance && $request['email'] != $contact->email) {
+                        return response()->json(['error' => 'The email has already been taken'], 400);
+                    }
                 }
                 $contact->full_name = isset($request['full_name']) ? $request['full_name'] : $contact->full_name;
                 $contact->gender = isset($request['gender']) ? $request['gender'] : $contact->gender;
-                $contact->phone = isset($request['phone']) ? $request['phone'] : $contact->phone;
+                $contact->phone = isset($request['phone']) ? $phone_number : $contact->phone;
+                $contact->email = isset($request['email']) ? $request['email'] : $contact->email;
                 $contact->acadamic_department = isset($request['acadamic_department']) ? $request['acadamic_department'] : $contact->acadamic_department;
+                $contact->graduation_year = isset($request['graduation_year']) ? $request['graduation_year'].'-07-30' : $contact->graduation_year;
                 if($contact->update()) {
                     return response()->json(['message' => 'contact updated seccessfully'], 200);
                 } 
@@ -176,14 +149,3 @@ class GraduateController extends Controller
 		}
     }
 }
-
-// try {
-// 			$user = JWTAuth::parseToken()->toUser();
-// 			if($user instanceof User) {
-
-// 			} else {
-// 				return response()->json(['error' => 'token expired'], 401);
-// 			}
-// 		} catch(Exception $ex) {
-// 			return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-// 		}

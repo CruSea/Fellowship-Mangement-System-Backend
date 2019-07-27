@@ -183,11 +183,6 @@ class AlarmMessageController extends Controller
 	            else if($contact251) {
 	                $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
 	            }
-	            // check weather the phone exists before
-                $check_phone_existance = AlarmMessage::where('sent_to', $phone_number)->exists();
-                if($check_phone_existance) {
-                    return response()->json(['error' => 'The phone has already been taken'], 400);
-                }
 
     			$alaram_message = new AlarmMessage();
     			$alaram_message->send_date = $request['send_date'];

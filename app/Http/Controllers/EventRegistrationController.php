@@ -60,37 +60,74 @@ class EventRegistrationController extends Controller
 		    			$event_registration->save();
 
 		    			
-
-		    			$contacts = Contact::whereIn('id', ContactTeam::where('team_id', '=', $team_id)->select('contact_id')->get())->get();
-
 		    			$setting = Setting::where('name', '=', 'API_KEY')->first();
 		    			if(!$setting) {
 		    				return response()->json(['error' => 'Api Key is not found'], 404);
 		    			}
-		    			for($i = 0; $i < count($contacts); $i++) {
-		    				$contact = $contacts[$i];
-		    				$sent_message = new SentMessage([
-		    					'message' => $request['message'],
-		    					'sent_to' => $contact->phone,
-		    					'is_sent' => false,
-		    					'is_delivered' => false,
-		    					'sms_port_id' => $sms_port_id,
-		    					'sent_by' => $user,
-		    				]);
-		    				if(!$sent_message->save()) {
-		    					$sent_message_again = new SentMessage();
-	                			$sent_message_again->message = $request['message'];
-	                			$sent_message_again->sent_to = $contact->phone;
-	                			$sent_message_again->is_sent = false;
-	                			$sent_message_again->is_delivered = false;
-	                			$sent_message_again->sms_port_id = $sms_port_id;
-	                			$sent_message_again->sent_by = $user;
-		                		$sent_message_again->save();
-		    					// return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not sent'], 500);
 
-		    				}
-	    					$insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+		    			$contacts = Contact::whereIn('id', ContactTeam::where('team_id', '=', $team_id)->select('contact_id')->get())->get();
+		    			if(count($contacts) == 0) {
+		    				return response()->json(['message' => 'member is not found in '.$team->name.' team'], 404);
 		    			}
+		    			
+		    			$insert = [];
+			            $contains_name = Str::contains($request['message'], '{name}');
+			            if($contains_name) {
+			    			for($i = 0; $i < count($contacts); $i++) {
+			    				$contact = $contacts[$i];
+			    				$replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
+			    				$sent_message = new SentMessage([
+			    					'message' => $replaceName,
+			    					'sent_to' => $contact->phone,
+			    					'is_sent' => false,
+			    					'is_delivered' => false,
+			    					'sms_port_id' => $sms_port_id,
+			    					'sent_by' => $user,
+			    				]);
+			    				if(!$sent_message->save()) {
+			    					$sent_message_again = new SentMessage();
+		                			$sent_message_again->message = $replaceName;
+		                			$sent_message_again->sent_to = $contact->phone;
+		                			$sent_message_again->is_sent = false;
+		                			$sent_message_again->is_delivered = false;
+		                			$sent_message_again->sms_port_id = $sms_port_id;
+		                			$sent_message_again->sent_by = $user;
+			                		$sent_message_again->save();
+			    					// return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not sent'], 500);
+
+			    				}
+		    					$insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+			    			}
+			    		} else {
+			    			for($i = 0; $i < count($contacts); $i++) {
+			    				$contact = $contacts[$i];
+			    				$sent_message = new SentMessage([
+			    					'message' => $request['message'],
+			    					'sent_to' => $contact->phone,
+			    					'is_sent' => false,
+			    					'is_delivered' => false,
+			    					'sms_port_id' => $sms_port_id,
+			    					'sent_by' => $user,
+			    				]);
+			    				if(!$sent_message->save()) {
+			    					$sent_message_again = new SentMessage();
+		                			$sent_message_again->message = $request['message'];
+		                			$sent_message_again->sent_to = $contact->phone;
+		                			$sent_message_again->is_sent = false;
+		                			$sent_message_again->is_delivered = false;
+		                			$sent_message_again->sms_port_id = $sms_port_id;
+		                			$sent_message_again->sent_by = $user;
+			                		$sent_message_again->save();
+			    					// return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not sent'], 500);
+
+			    				}
+		    					$insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+			    			}
+			    		}
+			    		if($insert == []) {
+			                $team_message->delete();
+			                return response()->json(['message' => 'member is not found in '.$team->name. ' team'], 404);
+			            }
 		    			$negarit_message_request = array();
 			            $negarit_message_request['API_KEY'] = $setting->value;
 			            $negarit_message_request['campaign_id'] = $sms_port->negarit_campaign_id;
@@ -155,39 +192,74 @@ class EventRegistrationController extends Controller
 	    			$event_registration->sent_by = $user;
 	    			$event_registration->save();
 
+	    			$fellowship = Fellowship::find($fellowship_id);
 	    			$contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
+
+	    			if(count($contacts) == 0) {
+	                    return response()->json(['message' => 'member is not found in '. $fellowship->university_name. ' fellowship'], 404);
+	                }
 
 	    			$setting = Setting::where('name', '=', 'API_KEY')->first();
 	                if(!$setting) {
 	                    return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
 	                }
+	                $insert = [];
+	                $contains_name = Str::contains($request['message'], '{name}');
+	                if($contains_name) {
+		                for($i = 0; $i < count($contacts); $i++) {
+		                	$contact = $contacts[$i];
+		                	$replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
+		                	if($contact->is_under_graduate) {
+		                		$sent_message = new SentMessage([
+		                			'message' => $replaceName,
+		                			'sent_to' => $contact->phone,
+		                			'is_sent' => false,
+		                			'is_delivered' => false,
+		                			'sms_port_id' => $sms_port_id,
+		                			'sent_by' => $user,
+		                		]);
+		                		if(!$sent_message->save()) {
+		                			$sent_message_again = new SentMessage();
+		                			$sent_message_again->message = $replaceName;
+		                			$sent_message_again->sent_to = $contact->phone;
+		                			$sent_message_again->is_sent = false;
+		                			$sent_message_again->is_delivered = false;
+		                			$sent_message_again->sms_port_id = $sms_port_id;
+		                			$sent_message_again->sent_by = $user;
+			                		$sent_message_again->save();
+		                		}
 
-	                for($i = 0; $i < count($contacts); $i++) {
-	                	
-	                	$contact = $contacts[$i];
-	                	if($contact->is_under_graduate) {
-	                		$sent_message = new SentMessage([
-	                			'message' => $request['message'],
-	                			'sent_to' => $contact->phone,
-	                			'is_sent' => false,
-	                			'is_delivered' => false,
-	                			'sms_port_id' => $sms_port_id,
-	                			'sent_by' => $user,
-	                		]);
-	                		if(!$sent_message->save()) {
-	                			$sent_message_again = new SentMessage();
-	                			$sent_message_again->message = $request['message'];
-	                			$sent_message_again->sent_to = $contact->phone;
-	                			$sent_message_again->is_sent = false;
-	                			$sent_message_again->is_delivered = false;
-	                			$sent_message_again->sms_port_id = $sms_port_id;
-	                			$sent_message_again->sent_by = $user;
-		                		$sent_message_again->save();
-	                		}
+		                		$insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+		                	}
+		                }
+		            } else {
+		            	for($i = 0; $i < count($contacts); $i++) {
+		                	
+		                	$contact = $contacts[$i];
+		                	if($contact->is_under_graduate) {
+		                		$sent_message = new SentMessage([
+		                			'message' => $request['message'],
+		                			'sent_to' => $contact->phone,
+		                			'is_sent' => false,
+		                			'is_delivered' => false,
+		                			'sms_port_id' => $sms_port_id,
+		                			'sent_by' => $user,
+		                		]);
+		                		if(!$sent_message->save()) {
+		                			$sent_message_again = new SentMessage();
+		                			$sent_message_again->message = $request['message'];
+		                			$sent_message_again->sent_to = $contact->phone;
+		                			$sent_message_again->is_sent = false;
+		                			$sent_message_again->is_delivered = false;
+		                			$sent_message_again->sms_port_id = $sms_port_id;
+		                			$sent_message_again->sent_by = $user;
+			                		$sent_message_again->save();
+		                		}
 
-	                		$insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
-	                	}
-	                }
+		                		$insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+		                	}
+		                }
+		            }
 	                $negarit_message_request = array();
 		            $negarit_message_request['API_KEY'] = $setting->value;
 		            $negarit_message_request['campaign_id'] = $sms_port->negarit_campaign_id;
@@ -252,15 +324,39 @@ class EventRegistrationController extends Controller
 	                else if($contact251) {
 	                    $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
 	                }
-
-    				$sent_message = new SentMessage([
-    					'message' => $request['message'],
-    					'sent_to' => $phone_number,
-    					'is_sent' => false,
-    					'is_delivered' => false,
-    					'sms_port_id' => $sms_port_id,
-    					'sent_by' => $user,
-    				]);
+	                $contains_name = Str::contains($request['message'], '{name}');
+	                $contact = Contact::where('phone', '=', $phone_number)->first();
+	                if($contact instanceof Contact) {
+	                	if($contains_name) {
+		                    $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
+		    				$sent_message = new SentMessage([
+		    					'message' => $replaceName,
+		    					'sent_to' => $phone_number,
+		    					'is_sent' => false,
+		    					'is_delivered' => false,
+		    					'sms_port_id' => $sms_port_id,
+		    					'sent_by' => $user,
+		    				]);
+		    			} else {
+		    				$sent_message = new SentMessage([
+		    					'message' => $request['message'],
+		    					'sent_to' => $phone_number,
+		    					'is_sent' => false,
+		    					'is_delivered' => false,
+		    					'sms_port_id' => $sms_port_id,
+		    					'sent_by' => $user,
+		    				]);
+		    			}
+	    			} else {
+	    				$sent_message = new SentMessage([
+	    					'message' => $request['message'],
+	    					'sent_to' => $phone_number,
+	    					'is_sent' => false,
+	    					'is_delivered' => false,
+	    					'sms_port_id' => $sms_port_id,
+	    					'sent_by' => $user,
+	    				]);
+	    			}
     				if($sent_message->save()) {
     					$setting = Setting::where('name', '=', 'API_KEY')->first();
 		                if(!$setting) {

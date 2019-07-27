@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Team;
 use App\User;
 use App\Contact;
@@ -132,15 +133,28 @@ class TeamController extends Controller
     }
     public function assignMembers($name) {
         try {
-            $request = request()->only('phone');
+            $request = request()->only('sent_to');
             $rule = [
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                'sent_to' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
             }
-            $contact = Contact::where('phone', '=', $request['phone'])->first();
+            $phone_number  = $request['sent_to'];
+            $contact0 = Str::startsWith($request['sent_to'], '0');
+            $contact9 = Str::startsWith($request['sent_to'], '9');
+            $contact251 = Str::startsWith($request['sent_to'], '251');
+            if($contact0) {
+                $phone_number = Str::replaceArray("0", ["+251"], $request['sent_to']);
+            }
+            else if($contact9) {
+                $phone_number = Str::replaceArray("9", ["+2519"], $request['sent_to']);
+            }
+            else if($contact251) {
+                $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
+            }
+            $contact = Contact::where('phone', '=', $phone_number)->first();
             if(!$contact) {
                 return response()->json(['error' => 'contact is not found'], 404);
             }
@@ -191,6 +205,19 @@ class TeamController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 400);
             }
+            $phone_number  = $request->input('phone');
+            $contact0 = Str::startsWith($request->input('phone'), '0');
+            $contact9 = Str::startsWith($request->input('phone'), '9');
+            $contact251 = Str::startsWith($request->input('phone'), '251');
+            if($contact0) {
+                $phone_number = Str::replaceArray("0", ["+251"], $request->input('phone'));
+            }
+            else if($contact9) {
+                $phone_number = Str::replaceArray("9", ["+2519"], $request->input('phone'));
+            }
+            else if($contact251) {
+                $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
+            }
             $contactTeam = new ContactTeam();
             $team = DB::table('teams')->where('name', '=', $name)->first();
             if(!$team) {
@@ -200,7 +227,7 @@ class TeamController extends Controller
             $contact = new Contact();
             $contact->full_name = $request->input('full_name');
             $contact->gender = $request->input('gender');
-            $contact->phone = $request->input('phone');
+            $contact->phone = $phone_number;
             $contact->email = $request['email'];
             $contact->acadamic_department = $request->input('acadamic_department');
             $contact->graduation_year = $request['graduation_year'].'-07-30';
@@ -367,8 +394,8 @@ class TeamController extends Controller
             if(!$team) {
                 return response()->json(['error' => 'team is not found'], 404);
             }
-            $contactTeam = new ContactTeam();
             if($user instanceof User) {
+                $count_add_contacts = 0;
                 if(Input::hasFile('file')) {
                     $path = Input::file('file')->getRealPath();
                     $data = Excel::load($path, function($reader){
@@ -389,26 +416,67 @@ class TeamController extends Controller
                             if($value->gender == null) {
                                 return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 404);
                             }
-                            if($value->email == null) {
-                                return response()->json(['message' => 'validation error', 'error' => "email can't be null"], 404);
+                            if($value->acadamic_department == null) {
+                                return response()->json(['message' => 'validation error', 'error' => "acadamic department year can't be null"], 404);
                             }
                             if($value->graduation_year == null) {
                                 return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
                             }
-                            $insert[] = ['full_name' => $value->full_name, 'phone' => $value->phone, 'email' => $request['email'], 'gender' => $value->gender, 'acadamic_department' => $acadamic_department, 'graduation_year' => $request['graduation_year'],'fellowship_id' => $user->fellowship_id, 'created_by' => json_encode($user), 'is_under_graduate' => true,
-                                'is_this_year_gc' => false, 'created_at' => new DateTime(), 'updated_at' => new DateTime()];
-                        }
-                        if(!empty($insert)) {
-                            $contact = new Contact();
-                            $contact::insert($insert);
 
-                            $team_id = $team->id;
-                            $contact_id = $contact->id;
-                            $contactTeam->team_id = $team_id;
-                            $contactTeam->contact_id = $contact_id;
-                            // DB::table('contacts')->insert($insert);
-                            dd('Insert recorded successfully.');
+                            $phone_number  = $value->phone;
+                            $contact0 = Str::startsWith($value->phone, '0');
+                            $contact9 = Str::startsWith($value->phone, '9');
+                            $contact251 = Str::startsWith($value->phone, '251');
+                            if($contact0) {
+                                $phone_number = Str::replaceArray("0", ["+251"], $value->phone);
+                            }
+                            else if($contact9) {
+                                $phone_number = Str::replaceArray("9", ["+2519"], $value->phone);
+                            }
+                            else if($contact251) {
+                                $phone_number = Str::replaceArray("251", ['+251'], $value->phone);
+                            }
+
+                            // check weather the phone exists before
+                            $check_phone_existance = Contact::where('phone', $phone_number)->exists();
+                            // check weather the email exists before
+                            $check_email_existance = Contact::where([['email', '=',$value->email],['email', '!=', null]])->exists();
+                            if(!$check_phone_existance && !$check_email_existance && strlen($phone_number) <= 13) {
+                                $contact = new Contact();
+                                $contact->full_name = $value->full_name;
+                                $contact->gender = $value->gender;
+                                $contact->phone = $phone_number;
+                                $contact->email = $value->email;
+                                $contact->acadamic_department = $value->acadamic_department;
+                                $contact->graduation_year = $value->graduation_year.'-07-30';
+                                $contact->fellowship_id = $user->fellowship_id;
+                                $contact->is_under_graduate = true;
+                                $contact->is_this_year_gc = false;
+                                $contact->created_by = json_encode($user);
+                                if($contact->save()) {
+                                    $contact_team = new ContactTeam();
+                                    $contact_team->team_id = $team->id;
+                                    $contact_team->contact_id = $contact->id;
+                                    $contact_team->save();
+                                    $count_add_contacts++;
+                                }
+                            }
+                            if($check_phone_existance) {
+                                $contact = Contact::where('phone', '=', $phone_number)->first();
+                                $contact_team = new ContactTeam();
+                                $check_member_existance = ContactTeam::where([['team_id', '=', $team->id],['contact_id', '=', $contact->id]])->first();
+                                if(!$check_member_existance) {
+                                    $contact_team->team_id = $team->id;
+                                    $contact_team->contact_id = $contact->id;
+                                    $contact_team->save();
+                                    $count_add_contacts++;
+                                }
+                            }
                         }
+                        if($count_add_contacts == 0) {
+                            dd('member is not added to '.$team->name.' team');
+                        }
+                        dd($count_add_contacts.' contacts added to '.$team->name.' team successfully');
                     }
                     else {
                         return response()->json(['message' => 'file is empty', 'error' => 'unable to add contact'], 404);
