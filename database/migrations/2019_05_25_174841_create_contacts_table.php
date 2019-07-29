@@ -25,7 +25,7 @@ class CreateContactsTable extends Migration
         $table->integer('is_this_year_gc');
         $table->integer('fellowship_id')->unsigned()->nullable();
         $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
-        $table->json('created_by');
+        $table->string('created_by');
         $table->timestamps();
         });
     }

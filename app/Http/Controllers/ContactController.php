@@ -37,6 +37,7 @@ class ContactController extends Controller
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
+                'team' => 'string|min:1|nullable',
                 'email' => 'email|max:255|unique:contacts|nullable',
                 'graduation_year' => 'required|string',
             ];
@@ -71,7 +72,7 @@ class ContactController extends Controller
             $contact->fellowship_id = $user->fellowship_id;
             $contact->is_under_graduate = true;
             $contact->is_this_year_gc = false;
-            $contact->created_by = json_encode($user);
+            $contact->created_by = $user->full_name;
             $team = Team::where('name', '=', $request['team'])->first();
 
             if($request['team'] != null && !$team) {
@@ -79,12 +80,12 @@ class ContactController extends Controller
             }
 
             if($contact->save()) {
-                if($contact->team_id != null) {
-                    $contact_team = new ContactTeam();
-                    $contact_team->team_id = $team->id;
-                    $contact_team->contact_id = $contact->id;
-                    $contact_team->save();
-                }
+                // if($contact->team_id != null) {
+                $contact_team = new ContactTeam();
+                $contact_team->team_id = $team->id;
+                $contact_team->contact_id = $contact->id;
+                $contact_team->save();
+                // }
                 return response()->json(['message' => 'contact added successfully'], 200);
                 
             }
@@ -100,7 +101,6 @@ class ContactController extends Controller
                 if(!$user) {
                     return response()->json(['error' => 'token expired'], 401);
                 }
-                $contact->created_by = json_decode($contact->created_by);
                 return response()->json(['contact' => $contact], 200);
             }
             return response()->json(['message' => 'an error found', 'error' => 'contact is not found'], 404);
@@ -115,15 +115,15 @@ class ContactController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
 
-            $contacts = Contact::all();
-            // $contacts = Contact::where('is_under_graduate', '=', 1)->paginate(10);
+            // $contacts = Contact::all();
+            $contacts = Contact::where('is_under_graduate', '=', 1)->paginate(10);
             $countContact = Contact::count();
+            $count_under_graduate = count($contacts);
             if($countContact == 0) {
                 return response()->json(['message' => 'contact is not available'], 404);
             }
-            $under_graduate = [];
-            for($i = 0; $i < $countContact; $i++) {
-                $contacts[$i]->created_by = json_decode($contacts[$i]->created_by);
+            if($count_under_graduate == 0) {
+                return response()->json(['message' => 'under graduate member is not found'], 404);
             }
             return response()->json(['contacts' => $contacts], 200);
         } catch(Exception $ex) {
@@ -256,7 +256,7 @@ class ContactController extends Controller
                         $contact->fellowship_id = $user->fellowship_id;
                         $contact->is_under_graduate = true;
                         $contact->is_this_year_gc = false;
-                        $contact->created_by = json_encode($user);
+                        $contact->created_by = $user->full_name;
                         if($contact->save()) {
                             if($value->team != null && $team instanceof Team) {
                                 $contact_team = new ContactTeam();
@@ -298,10 +298,35 @@ class ContactController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $contacts = Contact::select('full_name', 'phone', 'gender','graduation_year')->get()->toArray();
-                Excel::create('contacts', function($excel) use ($contacts){
-                    $excel->sheet('sheet 1', function($sheet) use ($contacts){
-                        $sheet->fromArray($contacts);
+                // $contacts = Contact::select('full_name', 'phone', 'gender','graduation_year')->get()->toArray();
+                // Excel::create('contacts', function($excel) use ($contacts){
+                //     $excel->sheet('sheet 1', function($sheet) use ($contacts){
+                //         $sheet->fromArray($contacts);
+                //     });
+                // })->download('xlsx');
+                $contacts = Contact::where('is_under_graduate', '=', 1)->get()->toArray();
+                if(count($contacts) == 0) {
+                    return response()->json(['message' => 'under graduate member is not found'], 404);
+                }
+                $contact_array[] = array('full_name','gender', 'phone', 'email', 'acadamic_department', 'graduation_year', 'created_by', 'created_at', 'updated_at');
+                foreach ($contacts as $contact) {
+                    $contact_array[] = array(
+                        'full_name' => $contact->full_name,
+                        'gender' => $contact->gender,
+                        'phone' => $contact->phone,
+                        'email' => $contact->email,
+                        'acadamic_department' => $contact->acadamic_department,
+                        'graduation_year' => $contact->graduation_year,
+                        'created_by' => $contact->created_by,
+                        'created_at' => $contact->created_at,
+                        'updated_at' => $contact->updated_at,
+                    );
+                }
+                Excel::create('contacts', function($excel) use(
+                    $contact_array) {
+                    $excel->setTitle('contacts');
+                    $excel->sheet('contacts', function($sheet) use($contact_array) {
+                        $sheet->fromArray($contact_array, null, 'A1', false, false);
                     });
                 })->download('xlsx');
             } else {

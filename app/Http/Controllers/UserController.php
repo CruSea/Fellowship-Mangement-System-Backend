@@ -11,6 +11,7 @@ use App\User;
 use App\Role;
 use App\UserRole;
 use App\Fellowship;
+use App\Notification;
 use Auth;
 use Input;
 use JWTAuth;
@@ -63,6 +64,9 @@ class UserController extends Controller
             if($request->input('role') == 'super-admin') {
                 return response()->json(['message' => 'role is not found', 'error' => 'please enter a right role'], 404);
             }
+            $fellowship_id = $authUser->fellowship_id;
+            $fellowship = Fellowship::find($fellowship_id);
+            $notification = new Notification();
             if($role instanceof Role) {
                 // $role_id = $role->id;
                 $user = new User();
@@ -74,11 +78,9 @@ class UserController extends Controller
                 $user->remember_token = str_random(10);
                 // $user->updated_at = new DateTime();
                 if($user->save()) {
-                    // $user_role = Role::find(4);
-                    // $role_id = $role->id;
-                    // $user_role = Role::find($role_id);
                     $user->roles()->attach($role);
-                    // $user->attachRole($user_role);
+                    $notification->notification = $authUser->full_name.' added '.$user->full_name.' as '. $role->name.' for '. $fellowship->university_name;
+                    $notification->save();
                     return response()->json(['message' => 'user registered successfully'], 201);
                 }
                 else {

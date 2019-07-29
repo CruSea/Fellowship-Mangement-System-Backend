@@ -29,7 +29,8 @@ class CreateScheduleMessagesTable extends Migration
             $table->foreign('event_id')->references('id')->on('events')->onDelete('cascade');
             $table->integer('sms_port_id')->unsigned()->nullable();
             $table->foreign('sms_port_id')->references('id')->on('sms_ports')->onDelete('cascade');
-            $table->string('sent_to')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('sent_to');
             $table->json('sent_by');
             $table->timestamps();
         });

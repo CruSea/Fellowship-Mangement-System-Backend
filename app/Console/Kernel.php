@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         'App\Console\commands\UpdateContactToPostGraduate',
         'App\Console\commands\SendScheduledMessages',
         'App\Console\commands\SendAlarmMessage',
+        'App\Console\commands\countMessage',
     ];
 
     /**

@@ -74,6 +74,7 @@ class ParseRegistrationMessage extends Controller
             $contact_event->contact_id = $contact->id;
             if($contact_event->save()) {
                 $notification->notification = $contact->full_name.' registered for '. $event_trim.' through sms';
+                $notification->save();
                 // $logger->log(Logger::INFO, "user registed successfully", [$event_trim]);
                 // return response()->json(['message' => 'user registered for '.$event_trim . ' event successfully'], 200);
                 if(!$setting) {

@@ -46,7 +46,7 @@ class PostGraduateTeamController extends Controller
                 $postGraduate->is_under_graduate = false;
                 $postGraduate->is_this_year_gc = false;
                 $postGraduate->fellowship_id = $user->fellowship_id;
-                $postGraduate->created_by = json_encode($user);
+                $postGraduate->created_by = $user->full_name;
 
                 if($postGraduate->save()) {
                     $team_id = $team->id;
@@ -81,7 +81,7 @@ class PostGraduateTeamController extends Controller
                 }
                 $team_id = $team->id;
                 $postGradautes = Contact::whereIn('id', ContactTeam::where('team_id','=', 
-                $team_id)->select('contact_id')->get())->get();
+                $team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 0)->paginate(10);
                 if (!$postGradautes) {
                     return response()->json(['message' => 'something went wrong', 'error' => 'contact is not found'], 404);
                 }
@@ -91,22 +91,63 @@ class PostGraduateTeamController extends Controller
                 if($count == 0) {
                     return response()->json(['message' => 'contact is not found'], 404);
                 }
-                $post_graduate = [];
-                for($i = 0; $i < $count; $i++) {
-                    if($postGradautes[$i]->is_under_graduate == 0) {
-                        // return response()->json(['count' => $count],200);
-                        $post_graduate = Contact::where([['id', $postGradautes[$i]->id],['is_under_graduate', 0]])->get();
-                    }
+                // $post_graduate = [];
+                // for($i = 0; $i < $count; $i++) {
+                //     if($postGradautes[$i]->is_under_graduate == 0) {
+                //         // return response()->json(['count' => $count],200);
+                //         $post_graduate[] = Contact::where([['id', $postGradautes[$i]->id],['is_under_graduate', 0]])->get();
+                //     }
                     
-                }
-                $count_post_graduate = count($post_graduate);
-                if($count_post_graduate == 0) {
-                    return response()->json(['message' => 'post graduates are not found'], 404);
-                };
+                // }
+                // $count_post_graduate = count($postGradautes);
+                // if($count_post_graduate == 0) {
+                //     return response()->json(['message' => 'post graduates are not found'], 404);
+                // };
                 
-                return response()->json(['contacts' => $post_graduate], 200);
+                return response()->json(['contacts' => $postGradautes], 200);
             } else {
                 return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function exportPostGraduateTeamContact($name) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $team = Team::where('name', $name)->first();
+                if($team instanceof Team) { 
+                    $team_id = $team->id;
+                    $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
+                        $team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 0)->get()->toArray();
+                    if(count($contacts) == 0) {
+                        return response()->json(['message' => 'post graduate member is not found in '.$team->name.' team'], 404);
+                    }
+                    $contact_array[] = array('full_name','gender', 'phone', 'email', 'acadamic_department', 'graduation_year', 'created_by', 'created_at', 'updated_at');
+                    foreach ($contacts as $contact) {
+                        $contact_array[] = array(
+                            'full_name' => $contact->full_name,
+                            'gender' => $contact->gender,
+                            'email' => $contact->email,
+                            'phone' => $contact->phone,
+                            'acadamic_department' => $contact->acadamic_department,
+                            'graduation_year' => $contact->graduation_year,
+                            'created_by' => $contact->created_by,
+                            'created_at' => $contact->created_at,
+                            'updated_at' => $contact->updated_at,
+                        );
+                    }
+                    Excel::create('contacts', function($excel) use(
+                        $contact_array) {
+                        $excel->setTitle('contacts');
+                        $excel->sheet('contacts', function($sheet) use($contact_array) {
+                            $sheet->fromArray($contact_array, null, 'A1', false, false);
+                        });
+                    })->download('xlsx');
+                }
+            } else {
+                json(['error' => 'token expired'], 401);
             }
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);

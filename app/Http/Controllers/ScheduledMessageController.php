@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use App\User;
 use App\ScheduleMessage;
+use App\Fellowship;
+use App\Contact;
 use App\Team;
 use App\Event;
 use App\SmsPort;
@@ -53,6 +56,7 @@ class ScheduledMessageController extends Controller
     			$shceduled_message->sent_time = $request['sent_time'];
     			$shceduled_message->message = $request['message'];
     			$shceduled_message->team_id = $team_id;
+    			$shceduled_message->sent_to = $team->name;
     			$shceduled_message->sms_port_id = $sms_port_id;
     			$shceduled_message->sent_by = $user;
     			if($shceduled_message->save()) {
@@ -92,6 +96,8 @@ class ScheduledMessageController extends Controller
     				return response()->json(['error' => "end date can't be sooner than start date"], 400);
     			}
     			$sms_port_id = $sms_port->id;
+    			$fellowship_id = $user->fellowship_id;
+    			$fellowship = Fellowship::find($fellowship_id);
 
     			$shceduled_message = new ScheduleMessage();
     			$shceduled_message->type = $request['type'];
@@ -99,7 +105,8 @@ class ScheduledMessageController extends Controller
     			$shceduled_message->end_date = $request['end_date'];
     			$shceduled_message->sent_time = $request['sent_time'];
     			$shceduled_message->message = $request['message'];
-    			$shceduled_message->fellowship_id = $user->fellowship_id;
+    			$shceduled_message->fellowship_id = $fellowship_id;
+    			$shceduled_message->sent_to = $fellowship->university_name;
     			$shceduled_message->sms_port_id = $sms_port_id;
     			$shceduled_message->sent_by = $user;
     			if($shceduled_message->save()) {
@@ -153,6 +160,7 @@ class ScheduledMessageController extends Controller
     			$shceduled_message->sent_time = $request['sent_time'];
     			$shceduled_message->message = $request['message'];
     			$shceduled_message->event_id = $event_id;
+    			$shceduled_message->sent_to = $event->event_name;
     			$shceduled_message->sms_port_id = $sms_port_id;
     			$shceduled_message->sent_by = $user;
     			if($shceduled_message->save()) {
@@ -178,7 +186,7 @@ class ScheduledMessageController extends Controller
     				'start_date' => 'required|date_format:Y-m-d|after:yesterday',
     				'end_date' => 'required|date_format:Y-m-d|after:today',
     				'sent_time' => 'required|date_format:H:i',
-	                'sent_to' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:schedule_messages',
+	                'sent_to' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
     				'message' => 'required|string|min:1',
     			];
     			$validator = Validator::make($request, $rule);
@@ -201,6 +209,10 @@ class ScheduledMessageController extends Controller
 	            else if($contact251) {
 	                $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
 	            }
+	            $phone = Contact::where('phone', '=', $phone_number)->first();
+	            if($phone instanceof Contact) {
+	            	$phone_number = $phone->full_name;
+	            }
 
     			$shceduled_message = new ScheduleMessage();
     			$shceduled_message->type = $request['type'];
@@ -208,6 +220,7 @@ class ScheduledMessageController extends Controller
     			$shceduled_message->end_date = $request['end_date'];
     			$shceduled_message->sent_time = $request['sent_time'];
     			$shceduled_message->message = $request['message'];
+    			$shceduled_message->phone = $phone_number;
     			$shceduled_message->sent_to = $phone_number;
     			$shceduled_message->sent_by = $user;
     			if($shceduled_message->save()) {
@@ -228,7 +241,8 @@ class ScheduledMessageController extends Controller
     		if($user instanceof User) {
     			$scheduled_message = ScheduleMessage::find($id);
     			if($scheduled_message instanceof ScheduleMessage) {
-    				return response()->json(['scheduled message' => $scheduled_message], 200);
+    				$scheduled_message->sent_by = json_decode($scheduled_message->sent_by);
+    				return response()->json(['scheduled_message' => $scheduled_message], 200);
     			} else {
     				return response()->json(['error' => 'scheduled message is not found'], 404);
     			}
@@ -244,12 +258,15 @@ class ScheduledMessageController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$scheduled_messages = new ScheduleMessage();
+    			$scheduled_messages = ScheduleMessage::paginate(10);
     			$count_message = $scheduled_messages->count();
     			if($count_message == 0) {
     				return response()->json(['message' => 'scheduled message is empty'], 404);
     			}
-    			return response()->json(['scheduled messages' => $scheduled_messages->paginate(10)], 200);
+    			for($i = 0; $i < $count_message; $i++) {
+    				$scheduled_messages[$i]->sent_by = json_decode($scheduled_messages[$i]->sent_by);
+    			}
+    			return response()->json(['scheduled_messages' => $scheduled_messages], 200);
     		}
 	    	else {
 	    			return response()->json(['error' => 'token expired'], 401);

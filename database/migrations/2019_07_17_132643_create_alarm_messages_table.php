@@ -26,7 +26,8 @@ class CreateAlarmMessagesTable extends Migration
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
             $table->integer('event_id')->unsigned()->nullable();
             $table->foreign('event_id')->references('id')->on('events')->onDelete('cascade');
-            $table->string('sent_to')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('sent_to');
             $table->json('sent_by');
             $table->timestamps();
         });

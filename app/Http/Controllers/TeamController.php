@@ -218,6 +218,11 @@ class TeamController extends Controller
             else if($contact251) {
                 $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
             }
+            // check weather the phone exists before
+            $check_phone_existance = Contact::where('phone', $phone_number)->exists();
+            if($check_phone_existance) {
+                return response()->json(['error' => 'The phone has already been taken', 'message' => 'assign contact by phone number'], 400);
+            }
             $contactTeam = new ContactTeam();
             $team = DB::table('teams')->where('name', '=', $name)->first();
             if(!$team) {
@@ -234,7 +239,7 @@ class TeamController extends Controller
             $contact->is_under_graduate = true;
             $contact->is_this_year_gc = false;
             $contact->fellowship_id = $user->fellowship_id;
-            $contact->created_by = json_encode($user);
+            $contact->created_by = $user->full_name;
 
             if($contact->save()) {
                 $team_id = $team->id;
@@ -266,46 +271,22 @@ class TeamController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $team = DB::table('teams')->where('name', $name)->first();
+            $team = Team::where('name', $name)->first();
             if(!$team) { 
                 return response()->json(['message' => 'an error occurred', 'error' => 'team is not found'], 500);
             }
             $team_id = $team->id;
             $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
-            $team_id)->select('contact_id')->get())->get();
+                $team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 1)->paginate(10);
             if (!$contacts) {
                 return response()->json(['message' => 'something went wrong', 'error' => 'contact is not found'], 404);
             }
 
             $count = $contacts->count();
-            // $under_graduate;
             if($count == 0) {
                 return response()->json(['message' => 'contact is not found'], 404);
             }
-            $under_graduate = [];
-            for($i = 0; $i < $count; $i++) {
-                if($contacts[$i]->is_under_graduate) {
-                    $contacts_two = $contacts;
-                    $contacts[$i]->created_by = json_decode($contacts[$i]->created_by);
-                    $under_graduate[] = Contact::where([['id', $contacts[$i]->id],['is_under_graduate', 1]])->paginate(10);
-                    // $under_graduate[$i]->created_by = json_decode($under_graduate[$i]->created_by);
-                    // return response()->json(['contacts' => $contacts], 200);
-                    
-                }
-
-                
-            }
-            // $under_graduate = 
-            if(!count($under_graduate)) {
-                return response()->json(['message' => 'under graduate contact is empty'], 404);
-            }
-            // return response()->json(['count' => $under_graduate[2]], 200);
-            // for($j = 0; $j < 3; $j++) {
-            //     $under_graduate[$j]->created_by = json_decode($under_graduate[$j]->created_by);
-            // }
-
-            
-            return response()->json(['contacts' => $under_graduate], 200);
+            return response()->json(['contacts' => $contacts], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -452,7 +433,7 @@ class TeamController extends Controller
                                 $contact->fellowship_id = $user->fellowship_id;
                                 $contact->is_under_graduate = true;
                                 $contact->is_this_year_gc = false;
-                                $contact->created_by = json_encode($user);
+                                $contact->created_by = $user->full_name;
                                 if($contact->save()) {
                                     $contact_team = new ContactTeam();
                                     $contact_team->team_id = $team->id;
@@ -485,6 +466,50 @@ class TeamController extends Controller
                 return response()->json(['message' => 'File not found', 'error' => 'Contact file is not provided'], 404);
             } 
             return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function exportTeamContact($name) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $team = Team::where('name', $name)->first();
+                if($team instanceof Team) { 
+                    $team_id = $team->id;
+                    $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
+                        $team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 1)->get()->toArray();
+                    if(count($contacts) == 0) {
+                        return response()->json(['message' => 'under graduate member is not found in '.$team->name.' team'], 404);
+                    }
+                    $contact_array[] = array('full_name','gender', 'phone', 'email', 'acadamic_department', 'graduation_year', 'created_by', 'created_at', 'updated_at');
+                    foreach ($contacts as $contact) {
+                        $contact_array[] = array(
+                            'full_name' => $contact->full_name,
+                            'gender' => $contact->gender,
+                            'email' => $contact->email,
+                            'phone' => $contact->phone,
+                            'acadamic_department' => $contact->acadamic_department,
+                            'graduation_year' => $contact->graduation_year,
+                            'created_by' => $contact->created_by,
+                            'created_at' => $contact->created_at,
+                            'updated_at' => $contact->updated_at,
+                        );
+                    }
+                    Excel::create('contacts', function($excel) use(
+                        $contact_array) {
+                        $excel->setTitle('contacts');
+                        $excel->sheet('contacts', function($sheet) use($contact_array) {
+                            $sheet->fromArray($contact_array, null, 'A1', false, false);
+                        });
+                    })->download('xlsx');
+
+                } else {
+                    return response()->json(['message' => 'an error occurred', 'error' => 'team is not found'], 500);
+                }
+            } else {
+                json(['error' => 'token expired'], 401);
+            }
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

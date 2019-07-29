@@ -177,7 +177,7 @@ class EventController extends Controller
                 // check weather the phone exists before
                 $check_phone_existance = Contact::where('phone', $phone_number)->exists();
                 if($check_phone_existance) {
-                    return response()->json(['error' => 'The phone has already been taken'], 400);
+                    return response()->json(['error' => 'The phone has already been taken', 'message' => 'assign contact by phone number'], 400);
                 }
                 $contact = new Contact();
                 $contact->full_name = $request->input('full_name');
@@ -189,7 +189,7 @@ class EventController extends Controller
                 $contact->is_under_graduate = true;
                 $contact->is_this_year_gc = false;
                 $contact->fellowship_id = $user->fellowship_id;
-                $contact->created_by = json_encode($user);
+                $contact->created_by = $user->full_name;
                 if($contact->save()) {
                     $event_id = $event->id;
                     $contact_id = $contact->id;
@@ -286,7 +286,7 @@ class EventController extends Controller
                     return response()->json(['error' => 'event is not found'], 404);
                 }
                 $event_id = $event->id;
-                $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $event_id)->select('contact_id')->get())->get();
+                $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $event_id)->select('contact_id')->get())->paginate(10);
                 if(!$contacts) {
                     return response()->json(['error' => 'something went wrong'], 404);
                 }
@@ -400,7 +400,7 @@ class EventController extends Controller
                                 $contact->fellowship_id = $user->fellowship_id;
                                 $contact->is_under_graduate = true;
                                 $contact->is_this_year_gc = false;
-                                $contact->created_by = json_encode($user);
+                                $contact->created_by = $user->full_name;
                                 if($contact->save()) {
                                     $contact_event = new ContactEvent();
                                     $contact_event->event_id = $event->id;
@@ -439,6 +439,48 @@ class EventController extends Controller
                 return response()->json(['message' => 'File not found', 'error' => 'Contact file is not provided'], 404);
             } 
             return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function exportEventContact($name) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $event = Event::where('event_name', '=', $name)->first();
+                if($event instanceof Event) {
+                    $event_id = $event->id;
+                    $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $event_id)->select('contact_id')->get())->get()->toArray();
+                    if(count($contacts) == 0) {
+                        return response()->json(['message' => 'contact is not found in '.$event->event_name.' event'], 404);
+                    }
+                    $contact_array[] = array('full_name','gender', 'phone', 'email', 'acadamic_department', 'graduation_year', 'created_by', 'created_at', 'updated_at');
+                    foreach ($contacts as $contact) {
+                        $contact_array[] = array(
+                            'full_name' => $contact->full_name,
+                            'gender' => $contact->gender,
+                            'phone' => $contact->phone,
+                            'email' => $contact->email,
+                            'acadamic_department' => $contact->acadamic_department,
+                            'graduation_year' => $contact->graduation_year,
+                            'created_by' => $contact->created_by,
+                            'created_at' => $contact->created_at,
+                            'updated_at' => $contact->updated_at,
+                        );
+                    }
+                    Excel::create('contacts', function($excel) use(
+                        $contact_array) {
+                        $excel->setTitle('contacts');
+                        $excel->sheet('contacts', function($sheet) use($contact_array) {
+                            $sheet->fromArray($contact_array, null, 'A1', false, false);
+                        });
+                    })->download('xlsx');
+                } else {
+                    return response()->json(['error' => 'event is not found'], 404);
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

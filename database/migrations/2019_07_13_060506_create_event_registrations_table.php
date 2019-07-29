@@ -21,7 +21,8 @@ class CreateEventRegistrationsTable extends Migration
             $table->foreign('team_id')->references('id')->on('teams')->onDelete('cascade');
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
-            $table->string('sent_to')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('sent_to');
             $table->json('sent_by');
             $table->timestamps();
         });

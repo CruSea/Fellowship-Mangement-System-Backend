@@ -165,7 +165,6 @@ return [
 
         Zizaco\Entrust\EntrustServiceProvider::class,
         Maatwebsite\Excel\ExcelServiceProvider::class,
-        Sukohi\CsvValidator\CsvValidatorServiceProvider::class,
 
         /*
          * Package Service Providers...
@@ -235,7 +234,6 @@ return [
         'Input' => Illuminate\Support\Facades\Input::class,
         'Entrust'   => Zizaco\Entrust\EntrustFacade::class,
         'Excel' => Maatwebsite\Excel\Facades\Excel::class,
-        'CsvValidator' => Sukohi\CsvValidator\Facades\CsvValidator::class,
     ],
 
 ];

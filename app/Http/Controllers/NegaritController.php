@@ -68,7 +68,7 @@ class NegaritController extends Controller
             if(!$smsPort) {
                 return response()->json(['error' => 'sms port is not found'], 404);
             }
-            return response()->json(['sms-port', $smsPort], 200);
+            return response()->json(['sms_port', $smsPort], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -80,7 +80,7 @@ class NegaritController extends Controller
             if($countSmsPorts == 0) {
                 return response()->json(['message' => 'sms port is empty', 'sms port' =>[]], 404);
             }
-            return response()->json(['sms-ports' => $smsPort], 200);
+            return response()->json(['sms_ports' => $smsPort], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

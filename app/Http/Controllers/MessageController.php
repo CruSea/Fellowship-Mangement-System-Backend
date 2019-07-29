@@ -86,7 +86,7 @@ class MessageController extends Controller
                     $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
                     $sentMessage = new SentMessage([
                         'message' => $replaceName,
-                        'sent_to' => $phone_number,
+                        'sent_to' => $contact->full_name,
                         'is_sent' => false,
                         'is_delivered' => false,
                         'sms_port_id' => $getSmsPortId,
@@ -95,7 +95,7 @@ class MessageController extends Controller
                 } else {
                     $sentMessage = new SentMessage([
                         'message' => $request['message'],
-                        'sent_to' => $phone_number,
+                        'sent_to' => $contact->full_name,
                         'is_sent' => false,
                         'is_delivered' => false,
                         'sms_port_id' => $getSmsPortId,
@@ -118,7 +118,7 @@ class MessageController extends Controller
                 $get_campaign_id = $getSmsPort->negarit_campaign_id;
                 $get_api_key = $getSmsPort->negarit_sms_port_id;
                 $get_message = $sentMessage->message;
-                $get_phone = $sentMessage->sent_to;
+                $get_phone = $phone_number;
                 $get_sender = $sentMessage->sent_by;
 
                 // to send a post request (message) for Negarit API 
@@ -250,7 +250,7 @@ class MessageController extends Controller
                     if($contact->is_under_graduate) {
                         $sent_message = new SentMessage([
                             'message' => $replaceName,
-                            'sent_to' => $contact->phone,
+                            'sent_to' => $contact->full_name,
                             'is_sent' => false,
                             'is_delivered' => false,
                             'sms_port_id' => $getSmsPortId,
@@ -259,7 +259,7 @@ class MessageController extends Controller
                         if(!$sent_message->save()) {
                             $sent_message = new SentMessage([
                                 'message' => $replaceName,
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -267,7 +267,7 @@ class MessageController extends Controller
                             ]);
                             $sent_message->save();
                         }
-                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                     }
                 }
             } else {
@@ -277,7 +277,7 @@ class MessageController extends Controller
                     if($contact->is_under_graduate) {
                         $sent_message = new SentMessage([
                             'message' => $request['message'],
-                            'sent_to' => $contact->phone,
+                            'sent_to' => $contact->full_name,
                             'is_sent' => false,
                             'is_delivered' => false,
                             'sms_port_id' => $getSmsPortId,
@@ -286,7 +286,7 @@ class MessageController extends Controller
                         if(!$sent_message->save()) {
                             $sent_message = new SentMessage([
                                 'message' => $request['message'],
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -294,7 +294,7 @@ class MessageController extends Controller
                             ]);
                             $sent_message->save();
                         }
-                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                     }
                 }
             }
@@ -382,7 +382,7 @@ class MessageController extends Controller
                     if(!$contact->is_under_graduate) {
                         $sent_message = new SentMessage([
                             'message' => $replaceName,
-                            'sent_to' => $contact->phone,
+                            'sent_to' => $contact->full_name,
                             'is_sent' => false,
                             'is_delivered' => false,
                             'sms_port_id' => $getSmsPortId,
@@ -391,7 +391,7 @@ class MessageController extends Controller
                         if(!$sent_message->save()) {
                             $sent_message = new SentMessage([
                                 'message' => $replaceName,
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -399,7 +399,7 @@ class MessageController extends Controller
                             ]);
                             $sent_message->save();
                         }
-                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                     }
                 }
             } else {
@@ -409,7 +409,7 @@ class MessageController extends Controller
                     if(!$contact->is_under_graduate) {
                         $sent_message = new SentMessage([
                             'message' => $request['message'],
-                            'sent_to' => $contact->phone,
+                            'sent_to' => $contact->full_name,
                             'is_sent' => false,
                             'is_delivered' => false,
                             'sms_port_id' => $getSmsPortId,
@@ -418,7 +418,7 @@ class MessageController extends Controller
                         if(!$sent_message->save()) {
                             $sent_message = new SentMessage([
                                 'message' => $request['message'],
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -426,7 +426,7 @@ class MessageController extends Controller
                             ]);
                             $sent_message->save();
                         }
-                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                     }
                 }
             }
@@ -583,7 +583,7 @@ class MessageController extends Controller
                         if($contact->is_under_graduate) {
                             $sent_message = new SentMessage([
                                 'message' => $replaceName,
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -592,7 +592,7 @@ class MessageController extends Controller
                             if(!$sent_message->save()) {
                                 $sent_message = new SentMessage([
                                     'message' => $replaceName,
-                                    'sent_to' => $contact->phone,
+                                    'sent_to' => $contact->full_name,
                                     'is_sent' => false,
                                     'is_delivered' => false,
                                     'sms_port_id' => $getSmsPortId,
@@ -600,7 +600,7 @@ class MessageController extends Controller
                                 ]);
                                 $sent_message->save();
                             }
-                            $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                            $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                         }
                     }
                 } else {
@@ -610,7 +610,7 @@ class MessageController extends Controller
                         if($contact->is_under_graduate) {
                             $sent_message = new SentMessage([
                                 'message' => $request['message'],
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -619,7 +619,7 @@ class MessageController extends Controller
                             if(!$sent_message->save()) {
                                 $sent_message = new SentMessage([
                                     'message' => $request['message'],
-                                    'sent_to' => $contact->phone,
+                                    'sent_to' => $contact->full_name,
                                     'is_sent' => false,
                                     'is_delivered' => false,
                                     'sms_port_id' => $getSmsPortId,
@@ -627,7 +627,7 @@ class MessageController extends Controller
                                 ]);
                                 $sent_message->save();
                             }
-                            $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                            $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                         }
                     }
                 }
@@ -711,7 +711,7 @@ class MessageController extends Controller
                         if(!$contact->is_under_graduate) {
                             $sent_message = new SentMessage([
                                 'message' => $replaceName,
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -720,7 +720,7 @@ class MessageController extends Controller
                             if(!$sent_message->save()) {
                                 $sent_message = new SentMessage([
                                     'message' => $replaceName,
-                                    'sent_to' => $contact->phone,
+                                    'sent_to' => $contact->full_name,
                                     'is_sent' => false,
                                     'is_delivered' => false,
                                     'sms_port_id' => $getSmsPortId,
@@ -728,7 +728,7 @@ class MessageController extends Controller
                                 ]);
                                 $sent_message->save();
                             }
-                            $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                            $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                         }
                     }
                 } else {
@@ -738,7 +738,7 @@ class MessageController extends Controller
                         if(!$contact->is_under_graduate) {
                             $sent_message = new SentMessage([
                                 'message' => $request['message'],
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -747,7 +747,7 @@ class MessageController extends Controller
                             if(!$sent_message->save()) {
                                 $sent_message = new SentMessage([
                                     'message' => $request['message'],
-                                    'sent_to' => $contact->phone,
+                                    'sent_to' => $contact->full_name,
                                     'is_sent' => false,
                                     'is_delivered' => false,
                                     'sms_port_id' => $getSmsPortId,
@@ -755,7 +755,7 @@ class MessageController extends Controller
                                 ]);
                                 $sent_message->save();
                             }
-                            $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                            $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                         }
                     }
                 }
@@ -881,7 +881,7 @@ class MessageController extends Controller
                         $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
                         $sent_message = new SentMessage([
                             'message' => $replaceName,
-                            'sent_to' => $contact->phone,
+                            'sent_to' => $contact->full_name,
                             'is_sent' => false,
                             'is_delivered' => false,
                             'sms_port_id' => $getSmsPortId,
@@ -890,7 +890,7 @@ class MessageController extends Controller
                         if(!$sent_message->save()) {
                             $sent_message = new SentMessage([
                                 'message' => $replaceName,
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -898,7 +898,7 @@ class MessageController extends Controller
                             ]);
                             $sent_message->save();
                         }
-                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                     }
                 } else {
                     for($i = 0; $i < count($contacts); $i++) {
@@ -906,7 +906,7 @@ class MessageController extends Controller
 
                         $sent_message = new SentMessage([
                             'message' => $request['message'],
-                            'sent_to' => $contact->phone,
+                            'sent_to' => $contact->full_name,
                             'is_sent' => false,
                             'is_delivered' => false,
                             'sms_port_id' => $getSmsPortId,
@@ -915,7 +915,7 @@ class MessageController extends Controller
                         if(!$sent_message->save()) {
                             $sent_message = new SentMessage([
                                 'message' => $request['message'],
-                                'sent_to' => $contact->phone,
+                                'sent_to' => $contact->full_name,
                                 'is_sent' => false,
                                 'is_delivered' => false,
                                 'sms_port_id' => $getSmsPortId,
@@ -923,7 +923,7 @@ class MessageController extends Controller
                             ]);
                             $sent_message->save();
                         }
-                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $sent_message->sent_to];
+                        $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
                     }
                 }
                 if($insert == []) {

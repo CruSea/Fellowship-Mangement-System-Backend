@@ -125,6 +125,9 @@ Route::post('team/addMember/{name}', [
 Route::post('team/importContacts/{name}', [
     'uses' => 'TeamController@importContactForTeam'
 ]);
+Route::get('/team/exportContacts/{name}', [
+    'uses' => 'TeamController@exportTeamContact',
+]);
 Route::get('/teams', [
     'uses' => 'TeamController@getTeams',
 ]);
@@ -279,7 +282,7 @@ Route::get('/post-graduates', [
     'uses' => 'PostGraduatesController@getPostGraduates',
 ]);
 
-Route::group(['prefix' => 'post-graduat-team'], function() {
+Route::group(['prefix' => 'post-graduate-team'], function() {
     // Route::post('/', [
     //     'uses' => 'TeamController@addTeam',
     // ]);

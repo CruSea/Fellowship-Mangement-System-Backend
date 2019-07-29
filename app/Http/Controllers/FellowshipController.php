@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\User;
 use App\Fellowship;
+use App\Notification;
 use JWTAuth;
 class FellowshipController extends Controller
 {
@@ -23,6 +24,7 @@ class FellowshipController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
+                $notification = new Notification();
                 $fellowship_id = $user->fellowship_id;
     			$fellowship = Fellowship::find($fellowship_id);
     			$fellowship->university_name = $request['university_name'];
@@ -30,6 +32,8 @@ class FellowshipController extends Controller
     			$fellowship->specific_place = $request['specific_place'];
 
     			if($fellowship->update()) {
+                    $notification->notification = "Fellowship profile has been updated by ".$user->full_name. " on ". date('Y-m-d');
+                    $notification->save();
     				return response()->json(['message' => 'fellowship updated successfully'], 200);
     			} else {
     				return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'fellowship is not updated'], 500);
