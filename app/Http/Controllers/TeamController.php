@@ -29,6 +29,9 @@ class TeamController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 404);
+            }
             $team = new Team();
             
             $request = request()->only('name', 'description');
@@ -40,9 +43,7 @@ class TeamController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
-            if(!$user) {
-                return response()->json(['message' => 'authentication error', 'error' => 'user is not autorized to add a team'], 404);
-            }
+            
 
             $fellowship_id = $user->fellowship_id;
             
@@ -60,6 +61,10 @@ class TeamController extends Controller
     }
     public function getTeam($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             if(!$team = Team::find($id)) {
                 return response()->json(['message' => 'Ooops! an error occurred', 'error' => 'team is not found'], 404);
             }
@@ -71,6 +76,10 @@ class TeamController extends Controller
     }
     public function getTeams() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $teams = Team::paginate(10);
             $countTeams = Team::count();
             if($countTeams == 0) {
@@ -88,7 +97,7 @@ class TeamController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
-                return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to update team'], 404);
+                return response()->json(['error' => 'token expired'], 404);
             }
             $request = request()->only('name', 'description');
             $team = Team::find($id);
@@ -120,6 +129,10 @@ class TeamController extends Controller
     }
     public function deleteTeam($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             if(!$team = Team::find($id)) {
                 return response()->json(['message' => 'error occurred', 'error' => 'team is not found'], 404);
             }
@@ -133,6 +146,10 @@ class TeamController extends Controller
     }
     public function assignMembers($name) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $request = request()->only('sent_to');
             $rule = [
                 'sent_to' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
@@ -293,6 +310,10 @@ class TeamController extends Controller
     }
     public function updateMemberTeam($name, $id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $request = request()->only('team');
             $contact = Contact::find($id);
             if(!$contact) {
@@ -342,6 +363,10 @@ class TeamController extends Controller
     }
     public function deleteMember($name, $id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $contact = Contact::find($id);
             if(!$contact) {
                 return response()->json(['message' => '404 error', 'error' => 'contact is not found'], 404);
@@ -371,11 +396,11 @@ class TeamController extends Controller
     public function importContactForTeam($name) {
         try {
             $user = JWTAuth::parseToken()->toUser();
-            $team = Team::where('name', '=', $name)->first();
-            if(!$team) {
-                return response()->json(['error' => 'team is not found'], 404);
-            }
             if($user instanceof User) {
+                $team = Team::where('name', '=', $name)->first();
+                if(!$team) {
+                    return response()->json(['error' => 'team is not found'], 404);
+                }
                 $count_add_contacts = 0;
                 if(Input::hasFile('file')) {
                     $path = Input::file('file')->getRealPath();
@@ -464,8 +489,10 @@ class TeamController extends Controller
                     }
                 }
                 return response()->json(['message' => 'File not found', 'error' => 'Contact file is not provided'], 404);
-            } 
-            return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+            
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

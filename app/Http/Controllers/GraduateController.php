@@ -58,7 +58,7 @@ class GraduateController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
-                return response()->json(['message' => 'authentication error', 'error' => "not authorized to do this action"], 401);
+                return response()->json(['error' => 'token expired'], 401);
             }
 
             $request = request()->only('full_name', 'gender', 'phone', 'email', 'acadamic_department', 'graduation_year');

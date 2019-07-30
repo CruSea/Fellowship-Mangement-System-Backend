@@ -32,7 +32,7 @@ class UserController extends Controller
         try {
             $authUser = JWTAuth::parseToken()->toUser();
             if(!$authUser) {
-                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $rule = [
                 'full_name' => 'required|string|max:255',
@@ -97,7 +97,7 @@ class UserController extends Controller
         try {
             $user = JWtAuth::parseToken()->toUser();
             if(!$user instanceof User) {
-                return response()->json(['message' => 'user is not found', 'error' => 'the user you finding is not found'], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $userRole = DB::table('role_user')->where('user_id', '=', $user->id)->first();
             $role_id = $userRole->role_id;
@@ -124,6 +124,9 @@ class UserController extends Controller
     protected function updateUser() {
         try {
             $getUser = JWTAuth::parseToken()->toUser();
+            if(!$getUser) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $request = request()->only('full_name', 'phone', 'email', 'role');
             $rules = [
                 'full_name' => 'required|string|max:255',
@@ -189,16 +192,19 @@ class UserController extends Controller
         }
     }
     protected function updatePassword() {
-        //$user = User::find($id);
         try {
             $user = JWTAuth::parseToken()->toUser();
-            $request = request()->only('old_password');
-            $requestNewPassword = request()->only('new_password', 'confirm_password');
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+            $request = request()->only('old_password', 'password', 'password_confirmation');
+            // $requestNewPassword = request()->only('new_password', 'confirm_password');
             //old password validation
-            $password_rule = [
+            $rule = [
                 'old_password' => 'required|string|min:6',
+                'password' => 'required|confirmed|string|min:6',
             ];
-            $validate_password = Validator::make($request, $password_rule);
+            $validate_password = Validator::make($request, $rule);
             if($validate_password->fails()) {
                 return response()->json(['message' => 'password validation error', 'error' => $validate_password->messages()], 500);
             }
@@ -206,19 +212,7 @@ class UserController extends Controller
             $old_password = $request['old_password'];
             $encrypt_oldPassword = bcrypt($old_password);
             if(Hash::check($old_password, $user->password)) {
-                //new password validation
-                $new_password_rule = [
-                    'new_password' => 'required|string|min:6',
-                    'confirm_password' => 'required|string|min:6',
-                ];
-                $validate_new_password = Validator::make($requestNewPassword, $new_password_rule);
-                if($validate_new_password->fails()) {
-                    return response()->json(['message' => 'password validation error', 'error' => $validate_new_password->messages()], 500);
-                }
-                if($requestNewPassword['new_password'] != $requestNewPassword['confirm_password']) {
-                    return response()->json(['message' => 'password is not the same'], 400);
-                }
-                $user->password = bcrypt($requestNewPassword['new_password']);
+                $user->password = bcrypt($request['password']);
                 $user->updated_at = new DateTime();
                 if($user->save()) {
                     return response()->json(['message' => 'password updated successfully'], 200);
@@ -238,7 +232,7 @@ class UserController extends Controller
         try {
             $authUser = JWTAuth::parseToken()->toUser();
             if(!$authUser) {
-                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $user = User::find($id);
             if(!$user) {
@@ -258,7 +252,6 @@ class UserController extends Controller
         }catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
-
     }
     protected function deleteAccount() {
         try {
@@ -268,7 +261,7 @@ class UserController extends Controller
                 //     return response()->json(['message' => 'your account will be deleted with in two days', 'response' => 'your account will be active if you use your account with in two days'], 200);
                 // }
             }
-            return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+            return response()->json(['error' => 'token expired'], 401);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -277,7 +270,7 @@ class UserController extends Controller
         try {
             $authUser = JWTAuth::parseToken()->toUser();
             if(!$authUser) {
-                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $user = User::find($id);
             $request = request()->only('status');
@@ -306,7 +299,7 @@ class UserController extends Controller
     protected function updateUserRole(Request $request, $id) {
         $authUser = JWTAuth::parseToken()->toUser();
         if(!$authUser) {
-            return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+            return response()->json(['token' => 'token expired'], 401);
         }
         $user = User::find($id);
         if(!$user) {
@@ -340,7 +333,7 @@ class UserController extends Controller
         try {
             $authUser = JWTAuth::parseToken()->toUser();
             if(!$authUser) {
-                return response()->json(['message' => 'authentication error', 'error' => "not authorized to this action"], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $user = User::find($id);
             if(!$user) {

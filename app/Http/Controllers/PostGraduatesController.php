@@ -19,7 +19,7 @@ class PostGraduatesController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if(!$user) {
-    			return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+    			return response()->json(['error' => 'token expired'], 401);
     		}
     		$postGraduate = Contact::find($id);
     		
@@ -28,7 +28,7 @@ class PostGraduatesController extends Controller
     			if($is_post_graduate == 1) {
     				return response()->json(['message' => 'contact is under graduate'], 404);
     			}
-    			return response()->json(['post graduate' => $postGraduate], 200);
+    			return response()->json(['post_graduate' => $postGraduate], 200);
     		}
     		return response()->json(['message' => 'post graduate is not available', 'error' => 'unable to find post graduate'], 404);
     	} catch(Exception $ex) {
@@ -48,7 +48,7 @@ class PostGraduatesController extends Controller
                 return response()->json(['message' => 'post graduate not found', 'post graduate' => $postGradautes], 404);
             }
 
-    		return response()->json(['post graduates' => $postGradautes], 200);
+    		return response()->json(['post_graduates' => $postGradautes], 200);
     	} catch(Exception $ex) {
     		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
     	}
@@ -57,7 +57,7 @@ class PostGraduatesController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if(!$user) {
-    			return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+    			return response()->json(['error' => 'token expired'], 401);
     		}
     		$request = request()->only('full_name', 'gender', 'phone', 'email', 'team', 'acadamic_department', 'graduated_year');
 	    	$rule = [
@@ -116,7 +116,7 @@ class PostGraduatesController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if(!$user) {
-    			return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+    			return response()->json(['error' => 'token expired'], 401);
     		}
     		$postGraduate = Contact::find($id);
     		if($postGraduate instanceof Contact) {

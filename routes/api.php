@@ -23,6 +23,12 @@ Route::post('/signup', [
 Route::post('/signin', [
     'uses' => 'LoginController@signin'
 ]);
+Route::post('/sendResetPasswordLink', [
+    'uses' => 'ForgotPasswordController@sendEmail',
+]);
+Route::post('/resetPassword', [
+    'uses' => 'ResetPasswordController@resetPassword'
+]);
 Route::group(['prefix' => 'user'], function() {
     Route::post('/', [
         'uses' => 'UserController@store'
@@ -54,9 +60,15 @@ Route::group(['prefix' => 'user'], function() {
 Route::get('/users', [
     'uses' => 'UserController@getUsers'
 ]);
-Route::patch('/fellowship', [
+Route::group(['prefix' => 'fellowship'], function() {
+    Route::patch('/', [
     'uses' => 'FellowshipController@update',
 ]);
+Route::get('/', [
+    'uses' => 'FellowshipController@show',
+]);
+});
+
 // Route::post('/importUsers', [
 //     'uses' => 'UserController@importExcel'
 // ]);

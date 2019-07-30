@@ -25,7 +25,7 @@ class NegaritController extends Controller
 
             $setting = Setting::where('name', '=', 'API_KEY')->first();
             if(!$setting) {
-                return response()->json(['message' => 'API_KEY is not found', 'error' => 'please add api key in setting from negarit api'], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $API_KEY = $setting->value;
             $rule = [
@@ -62,7 +62,7 @@ class NegaritController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
-                return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $smsPort = SmsPort::find($id);
             if(!$smsPort) {
@@ -75,6 +75,10 @@ class NegaritController extends Controller
     }
     public function getSmsPorts() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $smsPort = SmsPort::all();
             $countSmsPorts = SmsPort::count();
             if($countSmsPorts == 0) {
@@ -88,6 +92,9 @@ class NegaritController extends Controller
     public function updateSmsPort($id) {
         try {
             $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $smsPort = SmsPort::find($id);
             $request = request()->only('port_name', 'port_type', 'api_key', 'negarit_sms_port_id', 'negarit_campaign_id');
             if(!$user) {
@@ -128,15 +135,17 @@ class NegaritController extends Controller
     public function deleteSmsPort($id) {
         try {
             $user = JWTAuth::parseToken()->toUser();
-            if(!$user instanceof User) {
+            if($user instanceof User) {
                 $smsPort = SmsPort::find($id);
                 if(!$smsPort) {
                     return response()->json(['error' => 'sms port is not found'], 404);
                 }
                 if($smsPort->delete()) {
                     return response()->json(['message' => 'sms port deleted successfully'], 200);
+                } else {
+                    return response()->json(['error' => 'token expired'], 401);
                 }
-                return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'sms port is not deleted'], 500);
+                
             }
             return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
         } catch(Exception $ex) {

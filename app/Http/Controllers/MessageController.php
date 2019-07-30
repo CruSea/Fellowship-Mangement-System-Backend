@@ -34,7 +34,7 @@ class MessageController extends Controller
         try {
             $user = JWtAuth::parseToken()->toUser();
             if(!$user instanceof User) {
-                return response()->json(['error' => 'user is not found'], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $request = request()->only('message', 'sent_to', 'port_name');
             $rule = [
@@ -151,6 +151,10 @@ class MessageController extends Controller
     }
     public function getContactMessage($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $getMessage = SentMessage::find($id);
             if($getMessage instanceof SentMessage) {
                 $getMessage->sent_by = json_decode($getMessage->sent_by);
@@ -166,6 +170,10 @@ class MessageController extends Controller
     }
     public function getContactsMessages() {
         try{
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $contactMessage = SentMessage::paginate(10);
             $countMessages = SentMessage::count();
             if($countMessages == 0) {
@@ -181,6 +189,10 @@ class MessageController extends Controller
     }
     public function deleteContactMessage($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $sentMessage = SentMessage::find($id);
             if(!$sentMessage) {
                 return response()->json(['error' => 'message is not available'], 404);
@@ -197,7 +209,7 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
-                return response()->json(['message' => 'authentication error', 'error' => 'user is not authenticated'], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $team_message = new TeamMessage();
             $request = request()->only('port_name', 'team', 'message');
@@ -333,7 +345,7 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
-                return response()->json(['message' => 'authentication error', 'error' => 'user is not authenticated'], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
             $team_message = new TeamMessage();
             $request = request()->only('port_name', 'team', 'message');
@@ -983,6 +995,10 @@ class MessageController extends Controller
     }
     public function getNegaritRecievedMessage() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $setting = Setting::where('name', '=', 'API_KEY')->first();
             if($setting instanceof Setting) {
                 $API_KEY = $setting->value;

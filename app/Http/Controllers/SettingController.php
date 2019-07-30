@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Setting;
+use JWTAuth;
 class SettingController extends Controller
 {
     protected $root_url;
@@ -17,6 +18,10 @@ class SettingController extends Controller
     }
     public function createSetting() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $request = request()->only('value');
             $rule = [
                 // 'name' => 'required|string|unique:settings',
@@ -53,6 +58,10 @@ class SettingController extends Controller
     }
     public function getSetting($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $setting = Setting::find($id);
             if($setting instanceof Setting) {
                 return response()->json(['setting', $setting], 200);
@@ -64,6 +73,10 @@ class SettingController extends Controller
     }
     public function getSettings() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $settings = Setting::all();
             $countSetting = Setting::count();
             if($countSetting == 0) {
@@ -76,6 +89,10 @@ class SettingController extends Controller
     }
     public function updateSetting($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $request = request()->only('value');
             $old_setting = Setting::find($id);
 
@@ -88,11 +105,6 @@ class SettingController extends Controller
                 if($validator->fails()) {
                     return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
                 }
-                // $check_setting_existance = Setting::where('name', '=', $request['name'])->exists();
-                // if($check_setting_existance && $request['name'] != $old_setting->name) {
-                //     return response()->json(['message' => 'duplication error', 'error' => 'The setting name has already been taken.'], 400);
-                // }
-                // $old_setting->name = isset($request['name']) ? $request['name'] : $old_setting->name;
                 $old_setting->value = isset($request['value']) ? $request['value'] : $old_setting->value;
                 if($old_setting->update()) {
                     return response()->json(['message' => 'setting updated successfully'], 200);
@@ -107,6 +119,10 @@ class SettingController extends Controller
     }
     public function getCampaigns() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $API_KEY = Setting::where('name', '=', 'API_KEY')->first();
             if($API_KEY instanceof Setting) {
                 $response = $this->sendGetRequest($this->root_url, 'api_request/campaigns?API_KEY='.$API_KEY->value);
@@ -133,6 +149,10 @@ class SettingController extends Controller
     }
     public function getSmsPorts() {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $setting = Setting::where('name', '=', 'API_KEY')->first();
             if($setting instanceof Setting) {
                 $API_KEY = $setting->value;
@@ -157,6 +177,10 @@ class SettingController extends Controller
     }
     public function deleteSetting($id) {
         try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
             $setting = Setting::find($id);
             if($setting instanceof Setting) {
                 if($setting->delete()) {

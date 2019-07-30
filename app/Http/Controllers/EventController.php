@@ -26,7 +26,7 @@ class EventController extends Controller
     			$request = request()->only('event_name', 'event_description');
     			$rule = [
     				'event_name' => 'required|string|min:1|unique:events',
-    				'event_description' => 'string',
+    				'event_description' => 'string|nullable',
     			];
     			$validator = Validator::make($request, $rule);
     			if($validator->fails()) {
@@ -93,7 +93,7 @@ class EventController extends Controller
     			$request = request()->only('event_name', 'event_description');
     			$rule = [
     				'event_name' => 'string|min:1',
-    				'event_description' => 'string|min:1'
+    				'event_description' => 'string|min:1|nullable'
     			];
     			$validator = Validator::make($request, $rule);
     			if($validator->fails()) {
@@ -102,7 +102,7 @@ class EventController extends Controller
     			$event = Event::find($id);
     			if($event instanceof Event) {
     				$event->event_name = isset($request['event_name']) ? $request['event_name'] : $event->event_name;
-    				$event->event_description = isset($request['event_description']) ? $request['event_description'] : $event->event_description;
+    				$event->description = isset($request['description']) ? $request['event_description'] : $event->description;
     				if($event->update()) {
     					return response()->json(['message' => 'event updated successfully'], 200);
     				}
@@ -437,8 +437,9 @@ class EventController extends Controller
                     }
                 }
                 return response()->json(['message' => 'File not found', 'error' => 'Contact file is not provided'], 404);
-            } 
-            return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
