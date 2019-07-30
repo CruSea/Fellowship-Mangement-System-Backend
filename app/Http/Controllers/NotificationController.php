@@ -35,7 +35,7 @@ class NotificationController extends Controller
     				return response()->json(['notification' => 0], 404);
     			} 
     			$notifications = Notification::paginate(10);
-    			return response()->json(['notifications' => $notifications], 200);
+    			return response()->json(['notifications' => $notifications, 'count' => $count], 200);
     		} else {
     			return response()->json(['error' => 'token expired'], 401);
     		}
