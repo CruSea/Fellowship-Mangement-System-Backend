@@ -62,12 +62,23 @@ Route::get('/users', [
 ]);
 Route::group(['prefix' => 'fellowship'], function() {
     Route::patch('/', [
-    'uses' => 'FellowshipController@update',
-]);
-Route::get('/', [
-    'uses' => 'FellowshipController@show',
-]);
+        'uses' => 'FellowshipController@update',
+    ]);
+    Route::get('/', [
+        'uses' => 'FellowshipController@show',
+    ]);
 });
+Route::group(['prefix' => 'notification'], function() {
+    Route::get('/{id}', [
+        'uses' => 'NotificationController@show',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'NotificationController@delete',
+    ]);
+});
+Route::get('/notifications', [
+    'uses' => 'NotificationController@getNotifications',
+]);
 
 // Route::post('/importUsers', [
 //     'uses' => 'UserController@importExcel'
