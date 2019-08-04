@@ -48,7 +48,8 @@ class MessageController extends Controller
             }
 
             // $getSmsPortName = SmsPort::find($request['port_name']);
-            $getSmsPortName = DB::table('sms_ports')->where('port_name', '=', $request['port_name'])->first();
+            // $getSmsPortName = DB::table('sms_ports')->where('port_name', '=', $request['port_name'])->first();
+            $getSmsPortName = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$getSmsPortName) {
                 return response()->json(['error' => 'sms port is not found', 
                     'message' => 'add sms port first'], 404);
@@ -78,39 +79,43 @@ class MessageController extends Controller
             else if($contact251) {
                 $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
             }
+            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+            }
 
             $contains_name = Str::contains($request['message'], '{name}');
-            $contact = Contact::where('phone', '=', $phone_number)->first();
+            $contact = Contact::where([['phone', '=', $phone_number], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if($contact instanceof Contact) {
                 if($contains_name) {
                     $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
-                    $sentMessage = new SentMessage([
-                        'message' => $replaceName,
-                        'sent_to' => $contact->full_name,
-                        'is_sent' => false,
-                        'is_delivered' => false,
-                        'sms_port_id' => $getSmsPortId,
-                        'sent_by' => $user,
-                    ]);
+
+                    $sentMessage = new SentMessage();
+                    $sentMessage->message = $replaceName;
+                    $sentMessage->sent_to = $contact->full_name;
+                    $sentMessage->is_sent = false;
+                    $sentMessage->is_delivered = false;
+                    $sentMessage->sms_port_id = $getSmsPortId;
+                    $sentMessage->fellowship_id = $user->fellowship_id;
+                    $sentMessage->sent_by = $user;
                 } else {
-                    $sentMessage = new SentMessage([
-                        'message' => $request['message'],
-                        'sent_to' => $contact->full_name,
-                        'is_sent' => false,
-                        'is_delivered' => false,
-                        'sms_port_id' => $getSmsPortId,
-                        'sent_by' => $user,
-                    ]);
+                    $sentMessage = new SentMessage();
+                    $sentMessage->message = $request['message'];
+                    $sentMessage->sent_to = $contact->full_name;
+                    $sentMessage->is_sent = false;
+                    $sentMessage->is_delivered = false;
+                    $sentMessage->sms_port_id = $getSmsPortId;
+                    $sentMessage->fellowship_id = $user->fellowship_id;
+                    $sentMessage->sent_by = $user;
                 }
             } else {
-                $sentMessage = new SentMessage([
-                    'message' => $request['message'],
-                    'sent_to' => $phone_number,
-                    'is_sent' => false,
-                    'is_delivered' => false,
-                    'sms_port_id' => $getSmsPortId,
-                    'sent_by' => $user,
-                ]);
+                $sentMessage = new SentMessage();
+                $sentMessage->message = $request['message'];
+                $sentMessage->sent_to = $phone_number;
+                $sentMessage->is_sent = false;
+                $sentMessage->is_delivered = false;
+                $sentMessage->sms_port_id = $getSmsPortId;
+                $sentMessage->fellowship_id = $user->fellowship_id;
+                $sentMessage->sent_by = $user;
             }
 
             if($sentMessage->save()) {
@@ -156,7 +161,7 @@ class MessageController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $getMessage = SentMessage::find($id);
-            if($getMessage instanceof SentMessage) {
+            if($getMessage instanceof SentMessage && $getMessage->fellowship_id == $user->fellowship_id) {
                 $getMessage->sent_by = json_decode($getMessage->sent_by);
                 return response()->json(['message' => $getMessage], 200);
             }
@@ -174,8 +179,9 @@ class MessageController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $contactMessage = SentMessage::paginate(10);
-            $countMessages = SentMessage::count();
+            // $contactMessage = SentMessage::paginate(10);
+            $contactMessage = SentMessage::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+            $countMessages = $contactMessage->count();
             if($countMessages == 0) {
                 return response()->json(['message is not available'], 404);
             }
@@ -194,13 +200,15 @@ class MessageController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $sentMessage = SentMessage::find($id);
-            if(!$sentMessage) {
+            if($sentMessage instanceof SentMessage && $sentMessage->fellowship_id == $user->fellowship_id) {
+                if($sentMessage->delete()) {
+                    return response()->json(['message' => 'message deleted successfully'], 200);
+                }
+                return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not deleted'], 500);
+            } else {
                 return response()->json(['error' => 'message is not available'], 404);
             }
-            if($sentMessage->delete()) {
-                return response()->json(['message' => 'message deleted successfully'], 200);
-            }
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not deleted'], 500);
+            
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -222,22 +230,24 @@ class MessageController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
-            $team = DB::table('teams')->where('name', '=', $request['team'])->first();
+            $team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$team) {
                 return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
             }
 
-            $getSmsPortName = SmsPort::where('port_name', '=', $request['port_name'])->first();
+            $getSmsPortName = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$getSmsPortName) {
                 return response()->json(['message' => 'error found', 'error' => 'sms port is not found'], 404);
             }
             $getSmsPortId = $getSmsPortName->id;
+            $fellowship_id = $user->fellowship_id;
 
             $team_id = $team->id;
             $team_message->message = $request['message'];
             $team_message->team_id = $team_id;
             $team_message->sent_by = $user;
             $team_message->under_graduate = true;
+            $team_message->fellowship_id = $user->fellowship_id;
             $team_message->save();
             $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
             $team_id)->select('contact_id')->get())->get();
@@ -260,23 +270,24 @@ class MessageController extends Controller
                     $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
                     // $under_graduate = Contact::where([['id', $contacts[$i]->id], ['is_under_graduate', 0]])->get();
                     if($contact->is_under_graduate) {
-                        $sent_message = new SentMessage([
-                            'message' => $replaceName,
-                            'sent_to' => $contact->full_name,
-                            'is_sent' => false,
-                            'is_delivered' => false,
-                            'sms_port_id' => $getSmsPortId,
-                            'sent_by' => $user,
-                        ]);
+                        $sent_message = new SentMessage();
+                        $sent_message->message = $replaceName;
+                        $sent_message->sent_to = $contact->full_name;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $getSmsPortId;
+                        $sent_message->fellowship_id = $user->fellowship_id;
+                        $sent_message->sent_by = $user;
+
                         if(!$sent_message->save()) {
-                            $sent_message = new SentMessage([
-                                'message' => $replaceName,
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $replaceName;
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             $sent_message->save();
                         }
                         $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -287,23 +298,24 @@ class MessageController extends Controller
                     $contact = $contacts[$i];
                     // $under_graduate = Contact::where([['id', $contacts[$i]->id], ['is_under_graduate', 0]])->get();
                     if($contact->is_under_graduate) {
-                        $sent_message = new SentMessage([
-                            'message' => $request['message'],
-                            'sent_to' => $contact->full_name,
-                            'is_sent' => false,
-                            'is_delivered' => false,
-                            'sms_port_id' => $getSmsPortId,
-                            'sent_by' => $user,
-                        ]);
+                        $sent_message = new SentMessage();
+                        $sent_message->message = $request['message'];
+                        $sent_message->sent_to = $contact->full_name;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $getSmsPortId;
+                        $sent_message->fellowship_id = $user->fellowship_id;
+                        $sent_message->sent_by = $user;
+
                         if(!$sent_message->save()) {
-                            $sent_message = new SentMessage([
-                                'message' => $request['message'],
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $request['message'];
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             $sent_message->save();
                         }
                         $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -358,12 +370,12 @@ class MessageController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
-            $team = DB::table('teams')->where('name', '=', $request['team'])->first();
+            $team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$team) {
                 return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
             }
 
-            $getSmsPortName = SmsPort::where('port_name', '=', $request['port_name'])->first();
+            $getSmsPortName = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$getSmsPortName) {
                 return response()->json(['message' => 'error found', 'error' => 'sms port is not found'], 404);
             }
@@ -374,6 +386,7 @@ class MessageController extends Controller
             $team_message->team_id = $team_id;
             $team_message->sent_by = $user;
             $team_message->under_graduate = false;
+            $team_message->fellowship_id = $user->fellowship_id;
             $team_message->save();
             $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
             $team_id)->select('contact_id')->get())->get();
@@ -392,23 +405,24 @@ class MessageController extends Controller
                     $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
                     // $under_graduate = Contact::where([['id', $contacts[$i]->id], ['is_under_graduate', 0]])->get();
                     if(!$contact->is_under_graduate) {
-                        $sent_message = new SentMessage([
-                            'message' => $replaceName,
-                            'sent_to' => $contact->full_name,
-                            'is_sent' => false,
-                            'is_delivered' => false,
-                            'sms_port_id' => $getSmsPortId,
-                            'sent_by' => $user,
-                        ]);
+                        $sent_message = new SentMessage();
+                        $sent_message->message = $replaceName;
+                        $sent_message->sent_to = $contact->full_name;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $getSmsPortId;
+                        $sent_message->fellowship_id = $user->fellowship_id;
+                        $sent_message->sent_by = $user;
                         if(!$sent_message->save()) {
-                            $sent_message = new SentMessage([
-                                'message' => $replaceName,
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $replaceName;
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             $sent_message->save();
                         }
                         $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -419,23 +433,23 @@ class MessageController extends Controller
                     $contact = $contacts[$i];
                     // $under_graduate = Contact::where([['id', $contacts[$i]->id], ['is_under_graduate', 0]])->get();
                     if(!$contact->is_under_graduate) {
-                        $sent_message = new SentMessage([
-                            'message' => $request['message'],
-                            'sent_to' => $contact->full_name,
-                            'is_sent' => false,
-                            'is_delivered' => false,
-                            'sms_port_id' => $getSmsPortId,
-                            'sent_by' => $user,
-                        ]);
+                        $sent_message = new SentMessage();
+                        $sent_message->message = $request['message'];
+                        $sent_message->sent_to = $contact->full_name;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $getSmsPortId;
+                        $sent_message->fellowship_id = $user->fellowship_id;
+                        $sent_message->sent_by = $user;
                         if(!$sent_message->save()) {
-                            $sent_message = new SentMessage([
-                                'message' => $request['message'],
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $request['message'];
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             $sent_message->save();
                         }
                         $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -478,7 +492,9 @@ class MessageController extends Controller
         try {
             $user = JWtAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $team_message = TeamMessage::where('under_graduate', '=', true)->paginate(10);
+                $team_message = TeamMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
+                // $team_message = Team::whereIn('id', TeamMessage::where(''))
+                // $team_message = Team::
                 $count_team_message = count($team_message);
                 if($count_team_message == 0) {
                     return response()->json(['message' => 'empty team message', 'team message' => []], 404);
@@ -503,7 +519,7 @@ class MessageController extends Controller
         try {
             $user = JWtAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $team_message = TeamMessage::where('under_graduate', '=', false)->paginate(10);
+                $team_message = TeamMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
                 $count_team_message = count($team_message);
                 if($count_team_message == 0) {
                     return response()->json(['message' => 'empty team message', 'team message' => []], 404);
@@ -529,7 +545,7 @@ class MessageController extends Controller
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
                 $team_message = TeamMessage::find($id);
-                if($team_message instanceof TeamMessage) {
+                if($team_message instanceof TeamMessage && $team_message->fellowship_id == $user->fellowship_id) {
                     if($team_message->delete()) {
                         return response()->json(['message' => 'team message deleted successfully'], 200);
                     }
@@ -557,7 +573,7 @@ class MessageController extends Controller
                 if($validator->fails()) {
                     return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
                 }
-                $getSmsPortName = SmsPort::where('port_name', '=', $request['port_name'])->first();
+                $getSmsPortName = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$getSmsPortName) {
                     return response()->json(['message' => 'error found', 'error' => 'sms port is not found'], 404);
                 }
@@ -571,7 +587,7 @@ class MessageController extends Controller
                 }
 
                 $fellowship_message->message = $request['message'];
-                $fellowship_message->fellowship_name = $fellowship->university_name;
+                $fellowship_message->fellowship_id = $fellowship_id;
                 $fellowship_message->sent_by = $user;
                 $fellowship_message->under_graduate = true;
                 $fellowship_message->save();
@@ -593,23 +609,26 @@ class MessageController extends Controller
                         $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
 
                         if($contact->is_under_graduate) {
-                            $sent_message = new SentMessage([
-                                'message' => $replaceName,
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $replaceName;
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
+
                             if(!$sent_message->save()) {
-                                $sent_message = new SentMessage([
-                                    'message' => $replaceName,
-                                    'sent_to' => $contact->full_name,
-                                    'is_sent' => false,
-                                    'is_delivered' => false,
-                                    'sms_port_id' => $getSmsPortId,
-                                    'sent_by' => $user,
-                                ]);
+
+                                $sent_message = new SentMessage();
+                                $sent_message->message = $replaceName;
+                                $sent_message->sent_to = $contact->full_name;
+                                $sent_message->is_sent = false;
+                                $sent_message->is_delivered = false;
+                                $sent_message->sms_port_id = $getSmsPortId;
+                                $sent_message->fellowship_id = $user->fellowship_id;
+                                $sent_message->sent_by = $user;
                                 $sent_message->save();
                             }
                             $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -620,23 +639,25 @@ class MessageController extends Controller
                         $contact = $contacts[$i];
 
                         if($contact->is_under_graduate) {
-                            $sent_message = new SentMessage([
-                                'message' => $request['message'],
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $request['message'];
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             if(!$sent_message->save()) {
-                                $sent_message = new SentMessage([
-                                    'message' => $request['message'],
-                                    'sent_to' => $contact->full_name,
-                                    'is_sent' => false,
-                                    'is_delivered' => false,
-                                    'sms_port_id' => $getSmsPortId,
-                                    'sent_by' => $user,
-                                ]);
+
+                                $sent_message = new SentMessage();
+                                $sent_message->message = $request['message'];
+                                $sent_message->sent_to = $contact->full_name;
+                                $sent_message->is_sent = false;
+                                $sent_message->is_delivered = false;
+                                $sent_message->sms_port_id = $getSmsPortId;
+                                $sent_message->fellowship_id = $user->fellowship_id;
+                                $sent_message->sent_by = $user;
                                 $sent_message->save();
                             }
                             $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -690,7 +711,7 @@ class MessageController extends Controller
                 if($validator->fails()) {
                     return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
                 }
-                $getSmsPortName = SmsPort::where('port_name', '=', $request['port_name'])->first();
+                $getSmsPortName = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$getSmsPortName) {
                     return response()->json(['message' => 'error found', 'error' => 'sms port is not found'], 404);
                 }
@@ -704,7 +725,7 @@ class MessageController extends Controller
                 }
 
                 $fellowship_message->message = $request['message'];
-                $fellowship_message->fellowship_name = $fellowship->university_name;
+                $fellowship_message->fellowship_id = $fellowship_id;
                 $fellowship_message->under_graduate = false;
                 $fellowship_message->sent_by = $user;
                 $fellowship_message->save();
@@ -721,23 +742,25 @@ class MessageController extends Controller
                         $contact = $contacts[$i];
                         $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
                         if(!$contact->is_under_graduate) {
-                            $sent_message = new SentMessage([
-                                'message' => $replaceName,
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $replaceName;
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             if(!$sent_message->save()) {
-                                $sent_message = new SentMessage([
-                                    'message' => $replaceName,
-                                    'sent_to' => $contact->full_name,
-                                    'is_sent' => false,
-                                    'is_delivered' => false,
-                                    'sms_port_id' => $getSmsPortId,
-                                    'sent_by' => $user,
-                                ]);
+
+                                $sent_message = new SentMessage();
+                                $sent_message->message = $replaceName;
+                                $sent_message->sent_to = $contact->full_name;
+                                $sent_message->is_sent = false;
+                                $sent_message->is_delivered = false;
+                                $sent_message->sms_port_id = $getSmsPortId;
+                                $sent_message->fellowship_id = $user->fellowship_id;
+                                $sent_message->sent_by = $user;
                                 $sent_message->save();
                             }
                             $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -748,23 +771,39 @@ class MessageController extends Controller
                         $contact = $contacts[$i];
 
                         if(!$contact->is_under_graduate) {
-                            $sent_message = new SentMessage([
-                                'message' => $request['message'],
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+                            // $sent_message = new SentMessage([
+                            //     'message' => $request['message'],
+                            //     'sent_to' => $contact->full_name,
+                            //     'is_sent' => false,
+                            //     'is_delivered' => false,
+                            //     'sms_port_id' => $getSmsPortId,
+                            //     'sent_by' => $user,
+                            // ]);
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $request['message'];
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             if(!$sent_message->save()) {
-                                $sent_message = new SentMessage([
-                                    'message' => $request['message'],
-                                    'sent_to' => $contact->full_name,
-                                    'is_sent' => false,
-                                    'is_delivered' => false,
-                                    'sms_port_id' => $getSmsPortId,
-                                    'sent_by' => $user,
-                                ]);
+                                // $sent_message = new SentMessage([
+                                //     'message' => $request['message'],
+                                //     'sent_to' => $contact->full_name,
+                                //     'is_sent' => false,
+                                //     'is_delivered' => false,
+                                //     'sms_port_id' => $getSmsPortId,
+                                //     'sent_by' => $user,
+                                // ]);
+                                $sent_message = new SentMessage();
+                                $sent_message->message = $request['message'];
+                                $sent_message->sent_to = $contact->full_name;
+                                $sent_message->is_sent = false;
+                                $sent_message->is_delivered = false;
+                                $sent_message->sms_port_id = $getSmsPortId;
+                                $sent_message->fellowship_id = $user->fellowship_id;
+                                $sent_message->sent_by = $user;
                                 $sent_message->save();
                             }
                             $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -809,7 +848,7 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $fellowship_message = FellowshipMessage::where('under_graduate', '=', true)->paginate(10);
+                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
                 $count_message = count($fellowship_message);
                 if($count_message == 0) {
                     return response()->json(['message' => 'empty fellowship message'], 404);
@@ -830,7 +869,7 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $fellowship_message = FellowshipMessage::where('under_graduate', '=', false)->paginate(10);
+                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
                 $count_message = count($fellowship_message);
                 if($count_message == 0) {
                     return response()->json(['message' => 'empty fellowship message'], 404);
@@ -861,12 +900,12 @@ class MessageController extends Controller
                 if($validator->fails()) {
                     return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
                 }
-                $event = Event::where('event_name', '=', $request['event'])->first();
+                $event = Event::where([['event_name', '=', $request['event']], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$event) {
                     return response()->json(['error' => 'event is not found'], 404);
                 }
 
-                $getSmsPortName = SmsPort::where('port_name', '=', $request['port_name'])->first();
+                $getSmsPortName = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$getSmsPortName) {
                     return response()->json(['message' => 'error found', 'error' => 'sms port is not found'], 404);
                 }
@@ -875,6 +914,7 @@ class MessageController extends Controller
                 $event_id = $event->id;
                 $event_message->message = $request['message'];
                 $event_message->event_id = $event_id;
+                $event_message->fellowship_id = $user->fellowship_id;
                 $event_message->sent_by = $user;
                 $event_message->save();
 
@@ -891,23 +931,25 @@ class MessageController extends Controller
                     for($i = 0; $i < count($contacts); $i++) {
                         $contact = $contacts[$i];
                         $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
-                        $sent_message = new SentMessage([
-                            'message' => $replaceName,
-                            'sent_to' => $contact->full_name,
-                            'is_sent' => false,
-                            'is_delivered' => false,
-                            'sms_port_id' => $getSmsPortId,
-                            'sent_by' => $user,
-                        ]);
+                        
+                        $sent_message = new SentMessage();
+                        $sent_message->message = $replaceName;
+                        $sent_message->sent_to = $contact->full_name;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $getSmsPortId;
+                        $sent_message->fellowship_id = $user->fellowship_id;
+                        $sent_message->sent_by = $user;
                         if(!$sent_message->save()) {
-                            $sent_message = new SentMessage([
-                                'message' => $replaceName,
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+                            
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $replaceName;
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             $sent_message->save();
                         }
                         $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -916,23 +958,24 @@ class MessageController extends Controller
                     for($i = 0; $i < count($contacts); $i++) {
                         $contact = $contacts[$i];
 
-                        $sent_message = new SentMessage([
-                            'message' => $request['message'],
-                            'sent_to' => $contact->full_name,
-                            'is_sent' => false,
-                            'is_delivered' => false,
-                            'sms_port_id' => $getSmsPortId,
-                            'sent_by' => $user,
-                        ]);
+                        $sent_message = new SentMessage();
+                        $sent_message->message = $request['message'];
+                        $sent_message->sent_to = $contact->full_name;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $getSmsPortId;
+                        $sent_message->fellowship_id = $user->fellowship_id;
+                        $sent_message->sent_by = $user;
                         if(!$sent_message->save()) {
-                            $sent_message = new SentMessage([
-                                'message' => $request['message'],
-                                'sent_to' => $contact->full_name,
-                                'is_sent' => false,
-                                'is_delivered' => false,
-                                'sms_port_id' => $getSmsPortId,
-                                'sent_by' => $user,
-                            ]);
+
+                            $sent_message = new SentMessage();
+                            $sent_message->message = $request['message'];
+                            $sent_message->sent_to = $contact->full_name;
+                            $sent_message->is_sent = false;
+                            $sent_message->is_delivered = false;
+                            $sent_message->sms_port_id = $getSmsPortId;
+                            $sent_message->fellowship_id = $user->fellowship_id;
+                            $sent_message->sent_by = $user;
                             $sent_message->save();
                         }
                         $insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -975,8 +1018,8 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $event_message = EventMessage::paginate(10);
-                $count_message = EventMessage::count();
+                $event_message = EventMessage::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+                $count_message = $event_message->count();
                 if($count_message == 0) {
                     return response()->json(['response' => 'empty event message'], 404);
                 }

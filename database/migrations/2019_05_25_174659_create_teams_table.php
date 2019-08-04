@@ -15,7 +15,7 @@ class CreateTeamsTable extends Migration
     {
         Schema::create('teams', function (Blueprint $table) {
         $table->increments('id');
-        $table->string('name')->unique();
+        $table->string('name');
         $table->string('description')->nullable();
         $table->integer('fellowship_id')->unsigned()->nullable();
         $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');

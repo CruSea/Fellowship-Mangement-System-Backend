@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateSentMessagesTable extends Migration
+class CreateTodayMessagesTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,18 +13,16 @@ class CreateSentMessagesTable extends Migration
      */
     public function up()
     {
-        Schema::create('sent_messages', function (Blueprint $table) {
+        Schema::create('today_messages', function (Blueprint $table) {
             $table->increments('id');
             $table->string('message');
-            $table->string('sent_to');
-            // $table->string('status');
-            $table->boolean('is_sent');
-            $table->boolean('is_delivered');
-            $table->integer('sms_port_id')->unsigned()->nullable();
-            $table->foreign('sms_port_id')->references('id')->on('sms_ports')->onDelete('cascade');
+            $table->integer('remaining_time');
+            $table->integer('alarm_message_id')->unsigned()->nullable();
+            $table->foreign('alarm_message_id')->references('id')->on('alarm_messages')->onDelete('cascade')->onUpdate('cascade');
+            $table->integer('schedule_message_id')->unsigned()->nullable();
+            $table->foreign('schedule_message_id')->references('id')->on('schedule_messages')->onDelete('cascade')->onUpdate('cascade');
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
-            $table->json('sent_by');
             $table->timestamps();
         });
     }
@@ -36,6 +34,6 @@ class CreateSentMessagesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('sent_messages');
+        Schema::dropIfExists('today_messages');
     }
 }

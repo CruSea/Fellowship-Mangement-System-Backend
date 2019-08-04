@@ -14,7 +14,6 @@ use App\Fellowship;
 use Input;
 use JWTAuth;
 use Excel;
-use CsvValidator;
 use DateTime;
 
 class ContactController extends Controller
@@ -58,6 +57,9 @@ class ContactController extends Controller
             else if($contact251) {
                 $phone_number = Str::replaceArray("251", ['+251'], $request['phone']);
             }
+            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+            }
             $check_phone_existance = Contact::where('phone', $phone_number)->exists();
             if($check_phone_existance) {
                 return response()->json(['error' => 'The phone has already been taken'], 400);
@@ -73,7 +75,7 @@ class ContactController extends Controller
             $contact->is_under_graduate = true;
             $contact->is_this_year_gc = false;
             $contact->created_by = $user->full_name;
-            $team = Team::where('name', '=', $request['team'])->first();
+            $team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
 
             if($request['team'] != null && !$team) {
                 return response()->json(['message' => 'team is not found', 'error' => 'please add '. $request['team']. ' team first before adding contact to '. $request['team']. ' team'], 404);
@@ -97,10 +99,11 @@ class ContactController extends Controller
     public function getContact($id) {
         try {
             $user = JWTAuth::parseToken()->toUser();
-            if($contact = Contact::find($id)) {
-                if(!$user) {
-                    return response()->json(['error' => 'token expired'], 401);
-                }
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+            $contact = Contact::find($id);
+            if($contact instanceof Contact && $contact->fellowship_id == $user->fellowship_id) {
                 return response()->json(['contact' => $contact], 200);
             }
             return response()->json(['message' => 'an error found', 'error' => 'contact is not found'], 404);
@@ -116,7 +119,7 @@ class ContactController extends Controller
             }
 
             // $contacts = Contact::all();
-            $contacts = Contact::where('is_under_graduate', '=', 1)->paginate(10);
+            $contacts = Contact::where([['is_under_graduate', '=', 1],['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
             $countContact = Contact::count();
             $count_under_graduate = count($contacts);
             if($countContact == 0) {
@@ -140,7 +143,7 @@ class ContactController extends Controller
             $request = request()->only('full_name', 'gender', 'phone', 'email','acadamic_department', 'graduation_year');
             $contact = Contact::find($id);
             
-            if($contact instanceof Contact) {
+            if($contact instanceof Contact && $contact->fellowship_id == $user->fellowship_id) {
                 $rule = [
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
@@ -165,6 +168,9 @@ class ContactController extends Controller
                 }
                 else if($contact251) {
                     $phone_number = Str::replaceArray("251", ['+251'], $request['phone']);
+                }
+                if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                    return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
                 }
                 // check weather the phone exists before
                 $check_phone_existance = Contact::where('phone', $phone_number)->exists();
@@ -211,23 +217,42 @@ class ContactController extends Controller
 				foreach ($data as $key => $value) {
                     // phone validation 
                     if($value->phone == null) {
-                        dd('validation error phone can not be null');
+                        if($count_add_contacts > 0) {
+                            return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => "validation error", 'error' => "phone can't be null"], 403);
+                        }
                         return response()->json(['message' => "validation error", 'error' => "phone can't be null"], 403);
                     }
                     if($value->full_name == null) {
+                        if($count_add_contacts > 0) {
+                            return response()->json(['response' => $count_add_contacts. ' contacts added yet','message' => 'validation error', 'error' => "full name can't be null"], 403);
+                        }
                         return response()->json(['message' => 'validation error', 'error' => "full name can't be null"], 403);
                     }
                     if($value->gender == null) {
+                        if($count_add_contacts > 0) {
+                            return response()->json(['response' => $count_add_contacts. ' contacts added yet','message' => 'validation error', 'error' => "gender can't be null"], 403);
+                        }
                         return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 403);
                     }
                     if($value->acadamic_department == null) {
+                        if($count_add_contacts > 0) {
+                            return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => 'validation error', 'error' => "acadamic department year can't be null"], 404);
+                        }
                         return response()->json(['message' => 'validation error', 'error' => "acadamic department year can't be null"], 404);
                     }
                     if($value->graduation_year == null) {
+                        if($count_add_contacts > 0) {
+                            return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => 'validation error', 'error' => "graduation year can't be null"], 404);
+                        }
                         return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
                     }
-                    $team = Team::where('name', '=', $value->team)->first();
-                    
+                    $team = Team::where([['name', '=', $value->team], ['fellowship_id', '=', $user->fellowship_id]])->first();
+                    if($value->team != null && !$team) {
+                        if($count_add_contacts > 0) {
+                            return response()->json(['response' => $count_add_contacts.' contacts added yet','error' => $value->team.' team is not found, please add '.$value->team.' team first if you want to add contact to '.$value->team.' team'], 400);
+                        }
+                        return response()->json(['error' => $value->team.' team is not found, please add '.$value->team.' team first if you want to add contact to '.$value->team.' team'], 400);
+                    }
                     $phone_number  = $value->phone;
                     $contact0 = Str::startsWith($value->phone, '0');
                     $contact9 = Str::startsWith($value->phone, '9');
@@ -241,11 +266,13 @@ class ContactController extends Controller
                     else if($contact251) {
                         $phone_number = Str::replaceArray("251", ['+251'], $value->phone);
                     }
+                    if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                    }
                     // check weather the phone exists before
                     $check_phone_existance = Contact::where('phone', $phone_number)->exists();
                     // check weather the email exists before
                     $check_email_existance = Contact::where([['email', '=',$value->email],['email', '!=', null]])->exists();
-                    if(!$check_phone_existance && !$check_email_existance && strlen($phone_number) <= 13) {
+                    if(!$check_phone_existance && !$check_email_existance && strlen($phone_number) == 13) {
                         $contact = new Contact();
                         $contact->full_name = $value->full_name;
                         $contact->gender = $value->gender;
@@ -268,7 +295,10 @@ class ContactController extends Controller
                         }
                     }
                 }
-                dd($count_add_contacts.' contacts add successfully');
+                if($count_add_contacts == 0) {
+                    return response()->json(['message' => 'no contact is added'], 404);
+                }
+                return response()->json(['message' => $count_add_contacts.' contacts added successfully'], 200);
             }
             else {
                 return response()->json(['message' => 'file is empty', 'error' => 'No contact is found in the file'], 404);
@@ -282,8 +312,8 @@ class ContactController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-
-            if($contact = Contact::find($id)) {
+            $contact = Contact::find($id);
+            if($contact instanceof Contact && $contact->fellowship_id == $user->fellowship_id) {
                 if($contact->delete()) {
                     return response()->json(['message' => 'contact deleted successfully'], 200);
                 }
@@ -304,7 +334,7 @@ class ContactController extends Controller
                 //         $sheet->fromArray($contacts);
                 //     });
                 // })->download('xlsx');
-                $contacts = Contact::where('is_under_graduate', '=', 1)->get()->toArray();
+                $contacts = Contact::where([['is_under_graduate', '=', 1], ['fellowship_id', '=', $user->fellowship_id]])->get()->toArray();
                 if(count($contacts) == 0) {
                     return response()->json(['message' => 'under graduate member is not found'], 404);
                 }

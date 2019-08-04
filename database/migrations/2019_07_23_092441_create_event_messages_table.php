@@ -18,6 +18,8 @@ class CreateEventMessagesTable extends Migration
             $table->string('message');
             $table->integer('event_id')->unsigned();
             $table->foreign('event_id')->references('id')->on('teams')->onDelete('cascade');
+            $table->integer('fellowship_id')->unsigned()->nullable();
+            $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
             $table->json('sent_by');
             $table->timestamps();
         });

@@ -48,7 +48,7 @@ class UpdateContactToPostGraduate extends Command
         }
 
         // check whether contact is this year graduate
-        $this_year_graduate = Contact::where('is_this_year_gc', '=', 360)->get();
+        $this_year_graduate = Contact::where('is_this_year_gc', '=', 0)->get();
         $contacts = Contact::all();
 
         for($j = 1; $j < count($contacts) - 1; $j++) {

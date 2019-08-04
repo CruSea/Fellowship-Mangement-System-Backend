@@ -36,7 +36,7 @@ class TeamController extends Controller
             
             $request = request()->only('name', 'description');
             $rule = [
-                'name' => 'required|string|max:255|unique:teams',
+                'name' => 'required|string|max:255',
                 'description' => 'required|string|max:255',
             ];
             $validator = Validator::make($request, $rule);
@@ -44,9 +44,15 @@ class TeamController extends Controller
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             
-
             $fellowship_id = $user->fellowship_id;
             
+            $fellowship_team = Team::where('fellowship_id', '=', $fellowship_id)->first();
+            if($fellowship_team) {
+                if($fellowship_team->name == $request['name']) {
+                    return response()->json(['error' => 'team name has already been taken'], 400);
+                }
+            }
+
             $team->name = $request['name'];
             $team->description = $request['description'];
             $team->fellowship_id = $fellowship_id;
@@ -65,11 +71,14 @@ class TeamController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            if(!$team = Team::find($id)) {
+            $team = Team::find($id);
+            if($team instanceof Team && $team->fellowship_id == $user->fellowship_id) {
+                $team->created_by = json_decode($team->created_by);
+            return response()->json(['team' => $team], 200);
+                
+            } else {
                 return response()->json(['message' => 'Ooops! an error occurred', 'error' => 'team is not found'], 404);
             }
-            $team->created_by = json_decode($team->created_by);
-            return response()->json(['team' => $team], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -80,10 +89,11 @@ class TeamController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $teams = Team::paginate(10);
-            $countTeams = Team::count();
+            // $teams = Team::paginate(10);
+            $teams = Team::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+            $countTeams = $teams->count();
             if($countTeams == 0) {
-                return response()->json(['error' => 'team is not empty'], 404);
+                return response()->json(['error' => 'team is not found'], 404);
             }
             for($i = 0; $i < $countTeams; $i++) {
                 $teams[$i]->created_by = json_decode($teams[$i]->created_by);
@@ -101,7 +111,7 @@ class TeamController extends Controller
             }
             $request = request()->only('name', 'description');
             $team = Team::find($id);
-            if(!$team) {
+            if(!$team || $team->fellowship_id != $user->fellowship_id) {
                 return response()->json(['message' => 'Ooops! an error occurred', 'error' => 'team is not found'], 404);
             }
             $rule = [
@@ -113,7 +123,7 @@ class TeamController extends Controller
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
             // check name duplication
-            $check_name_existance = Team::where('name', '=',$request['name'])->exists();
+            $check_name_existance = Team::where([['name', '=',$request['name']], ['fellowship_id', '=', $user->fellowship_id]])->exists();
             if($check_name_existance && $request['name'] != $team->name) {
                 return response()->json(['message' => 'team name duplication error', 'error' => 'The team has already been taken.'], 400);
             }
@@ -133,13 +143,17 @@ class TeamController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            if(!$team = Team::find($id)) {
+            $team = Team::find($id);
+            if($team instanceof Team && $team->fellowship_id == $user->fellowship_id) {
+                
+                if($team->delete()) {
+                    return response()->json(['message' => 'team deleted successfully'], 200);
+                } else {
+                    return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'team is not deleted'], 500);
+                }
+            } else {
                 return response()->json(['message' => 'error occurred', 'error' => 'team is not found'], 404);
             }
-            if($team->delete()) {
-                return response()->json(['message' => 'team deleted successfully'], 200);
-            }
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'team is not deleted'], 500);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -171,12 +185,15 @@ class TeamController extends Controller
             else if($contact251) {
                 $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
             }
-            $contact = Contact::where('phone', '=', $phone_number)->first();
+            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+            }
+            $contact = Contact::where([['phone', '=', $phone_number], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$contact) {
                 return response()->json(['error' => 'contact is not found'], 404);
             }
             $contactTeam = new ContactTeam();
-            $team = DB::table('teams')->where('name', '=', $name)->first();
+            $team = Team::where([['name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$team) {
                 return response()->json(['message' => '404 error', 'error' => 'team is not found'], 404);
             }
@@ -207,6 +224,7 @@ class TeamController extends Controller
     public function addMember(Request $request, $name) {
         try {
             $user = JWTAuth::parseToken()->toUser();
+            $contactTeam = new ContactTeam();
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
@@ -214,7 +232,7 @@ class TeamController extends Controller
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
                 'email' => 'email|max:255|unique:contacts|nullable',
                 'graduation_year' => 'required|string',
             ];
@@ -222,6 +240,11 @@ class TeamController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 400);
             }
+            $team = Team::where([['name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
+            if(!$team) {
+                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
+            }
+
             $phone_number  = $request->input('phone');
             $contact0 = Str::startsWith($request->input('phone'), '0');
             $contact9 = Str::startsWith($request->input('phone'), '9');
@@ -235,17 +258,40 @@ class TeamController extends Controller
             else if($contact251) {
                 $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
             }
-            // check weather the phone exists before
+            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+            }
+            // check whether contact is found in fellowship
+            $check_phone_exists_in_fellowship = Contact::where([['phone', '=', $phone_number], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+            if($check_phone_exists_in_fellowship) {
+                $get_contact = Contact::where('phone', '=', $phone_number)->first();
+                $under_graduate_contact = Contact::where([['phone', '=', $phone_number], ['is_under_graduate', '=', true]])->first();
+                if(!$under_graduate_contact) {
+                    return response()->json(['message' => 'unable to add post graduate member','error' => 'post graduate contact '.$get_contact->full_name.' already found by '. $phone_number.' phone number'], 400);
+                }
+                $team_id = $team->id;
+                $contact_id = $under_graduate_contact->id;
+                $contactDuplicationInOneTeam = DB::table('contact_teams')->where([
+                    ['team_id', '=', $team_id],
+                    ['contact_id', '=', $contact_id],
+                ])->get();
+                if(count($contactDuplicationInOneTeam) > 0) {
+                    return response()->json(['error' => 'duplication error', 'message' => 'contact is already found in '. $team->name .' team'], 403);
+                } else {
+                    $contactTeam->team_id = $team_id;
+                    $contactTeam->contact_id = $contact_id;
+                    if($contactTeam->save()) {
+                        return response()->json(['message' => 'under graduate contacte assigned team successfully'], 200);
+                    }
+                    return response()->json(['message' => 'an error occured', 'error' => "contact doesn't assigned a team, please try again"], 500);
+                }
+            }
+            // check whether the phone exists before
             $check_phone_existance = Contact::where('phone', $phone_number)->exists();
             if($check_phone_existance) {
-                return response()->json(['error' => 'The phone has already been taken', 'message' => 'assign contact by phone number'], 400);
+                return response()->json(['error' => 'The phone has already been taken'], 400);
             }
-            $contactTeam = new ContactTeam();
-            $team = DB::table('teams')->where('name', '=', $name)->first();
-            if(!$team) {
-                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
-            }
-            
+                 
             $contact = new Contact();
             $contact->full_name = $request->input('full_name');
             $contact->gender = $request->input('gender');
@@ -288,7 +334,7 @@ class TeamController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $team = Team::where('name', $name)->first();
+            $team = Team::where([['name', '=',$name], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$team) { 
                 return response()->json(['message' => 'an error occurred', 'error' => 'team is not found'], 500);
             }
@@ -316,7 +362,7 @@ class TeamController extends Controller
             }
             $request = request()->only('team');
             $contact = Contact::find($id);
-            if(!$contact) {
+            if(!$contact || $contact->fellowship_id != $user->fellowship_id) {
                 return response()->json(['error' => 'contact is not found'], 404);
             }
             $rule = [
@@ -326,11 +372,11 @@ class TeamController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
-            $getTeam = DB::table('teams')->where('name', '=' , $name)->first();
+            $getTeam = Team::where([['name', '=' , $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
            if(!$getTeam) {
                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
            }
-            $team = DB::table('teams')->where('name', '=', $request['team'])->first();
+            $team = DB::table('teams')->where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$team) {
                 return response()->json(['message' => '404 error', 'error' => 'team is not found'], 404);
             }
@@ -368,14 +414,14 @@ class TeamController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $contact = Contact::find($id);
-            if(!$contact) {
+            if(!$contact || $contact->fellowship_id != $user->fellowship_id) {
                 return response()->json(['message' => '404 error', 'error' => 'contact is not found'], 404);
             }
             $is_under_graduate = $contact->is_under_graduate;
             if(!$is_under_graduate) {
                 return response()->json(['message' => 'this member is not under graduate'], 404);
             }
-           $team = DB::table('teams')->where('name', '=' , $name)->first();
+           $team = Team::where([['name', '=' , $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
            if(!$team) {
                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
            }
@@ -397,7 +443,7 @@ class TeamController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $team = Team::where('name', '=', $name)->first();
+                $team = Team::where([['name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$team) {
                     return response()->json(['error' => 'team is not found'], 404);
                 }
@@ -412,20 +458,35 @@ class TeamController extends Controller
                         foreach($data as $key => $value) {
                             // phone validation 
                             if($value->phone == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => "validation error", 'error' => "phone can't be null"], 403);
+                                }
                                 return response()->json(['message' => 'validation error', 'error' => "phone can't be null"], 404);
                             }
                             // full_name validation 
                             if($value->full_name == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts. ' contacts added yet','message' => 'validation error', 'error' => "full name can't be null"], 403);
+                                }
                                 return response()->json(['message' => 'validatoin error', 'error' => "full name can't be null"], 404);
                             }
                             // gender validatin
                             if($value->gender == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts. ' contacts added yet','message' => 'validation error', 'error' => "gender can't be null"], 403);
+                                }
                                 return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 404);
                             }
                             if($value->acadamic_department == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => 'validation error', 'error' => "acadamic department year can't be null"], 404);
+                                }
                                 return response()->json(['message' => 'validation error', 'error' => "acadamic department year can't be null"], 404);
                             }
                             if($value->graduation_year == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => 'validation error', 'error' => "graduation year can't be null"], 404);
+                                }
                                 return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
                             }
 
@@ -442,12 +503,14 @@ class TeamController extends Controller
                             else if($contact251) {
                                 $phone_number = Str::replaceArray("251", ['+251'], $value->phone);
                             }
+                            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                            }
 
-                            // check weather the phone exists before
+                            // check whether the phone exists before
                             $check_phone_existance = Contact::where('phone', $phone_number)->exists();
-                            // check weather the email exists before
+                            // check whether the email exists before
                             $check_email_existance = Contact::where([['email', '=',$value->email],['email', '!=', null]])->exists();
-                            if(!$check_phone_existance && !$check_email_existance && strlen($phone_number) <= 13) {
+                            if(!$check_phone_existance && !$check_email_existance && strlen($phone_number) == 13) {
                                 $contact = new Contact();
                                 $contact->full_name = $value->full_name;
                                 $contact->gender = $value->gender;
@@ -468,15 +531,20 @@ class TeamController extends Controller
                                 }
                             }
                             if($check_phone_existance) {
-                                $contact = Contact::where('phone', '=', $phone_number)->first();
-                                $contact_team = new ContactTeam();
-                                $check_member_existance = ContactTeam::where([['team_id', '=', $team->id],['contact_id', '=', $contact->id]])->first();
-                                if(!$check_member_existance) {
-                                    $contact_team->team_id = $team->id;
-                                    $contact_team->contact_id = $contact->id;
-                                    $contact_team->save();
-                                    $count_add_contacts++;
+                                // check whether contact is found in the same fellowship (with the admin)
+                                $fellowship_contact = Contact::where([['phone', '=', $phone_number], ['fellowship_id', '=', $user->fellowship_id], ['is_under_graduate', '=', true]])->exists();
+                                if($fellowship_contact) {
+                                    $contact = Contact::where('phone', '=', $phone_number)->first();
+                                    $contact_team = new ContactTeam();
+                                    $check_member_existance = ContactTeam::where([['team_id', '=', $team->id],['contact_id', '=', $contact->id]])->first();
+                                    if(!$check_member_existance) {
+                                        $contact_team->team_id = $team->id;
+                                        $contact_team->contact_id = $contact->id;
+                                        $contact_team->save();
+                                        $count_add_contacts++;
+                                    }
                                 }
+                                
                             }
                         }
                         if($count_add_contacts == 0) {
@@ -501,7 +569,7 @@ class TeamController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $team = Team::where('name', $name)->first();
+                $team = Team::where([['name', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if($team instanceof Team) { 
                     $team_id = $team->id;
                     $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 

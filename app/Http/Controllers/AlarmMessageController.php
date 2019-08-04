@@ -33,24 +33,26 @@ class AlarmMessageController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$team = Team::where('name', '=', $request['team'])->first();
+    			$team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$team) {
     				return response()->json(['error' => 'team is not found'], 404);
     			}
-    			$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
+    			$sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$sms_port) {
     				return  response()->json(['error' => 'sms port is not found'], 404);
     			}
     			$team_id = $team->id;
     			$sms_port_id = $sms_port->id;
+    			$get_fellowship_id = $user->fellowship_id;
 
     			$alaram_message = new AlarmMessage();
     			$alaram_message->send_date = $request['send_date'];
     			$alaram_message->send_time = $request['send_time'];
     			$alaram_message->message = $request['message'];
     			$alaram_message->team_id = $team_id;
-    			$alaram_message->sent_to = $team->name;
+    			$alaram_message->sent_to = $team->name.' team';
     			$alaram_message->sms_port_id = $sms_port_id;
+    			$alaram_message->get_fellowship_id = $get_fellowship_id;
     			$alaram_message->sent_by = $user;
     			if($alaram_message->save()) {
     				return response()->json(['message' => 'message scheduled for '. $alaram_message->send_date. ' successfully'], 200);
@@ -79,7 +81,7 @@ class AlarmMessageController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
+    			$sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$sms_port) {
     				return  response()->json(['error' => 'sms port is not found'], 404);
     			}
@@ -95,6 +97,7 @@ class AlarmMessageController extends Controller
     			$alaram_message->fellowship_id = $fellowship_id;
     			$alaram_message->sent_to = $fellowship->university_name;
     			$alaram_message->sms_port_id = $sms_port_id;
+    			$alaram_message->get_fellowship_id = $fellowship_id;
     			$alaram_message->sent_by = $user;
     			if($alaram_message->save()) {
     				return response()->json(['message' => 'message scheduled for '. $alaram_message->send_date .' successfully'], 200);
@@ -124,16 +127,17 @@ class AlarmMessageController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$event = Event::where('event_name', '=', $request['event'])->first();
+    			$event = Event::where([['event_name', '=', $request['event']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$event) {
     				return response()->json(['error' => 'event is not found'], 404);
     			}
-    			$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
+    			$sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$sms_port) {
     				return  response()->json(['error' => 'sms port is not found'], 404);
     			}
     			$event_id = $event->id;
     			$sms_port_id = $sms_port->id;
+    			$get_fellowship_id = $user->fellowship_id;
 
     			$alaram_message = new AlarmMessage();
     			$alaram_message->send_date = $request['send_date'];
@@ -141,7 +145,8 @@ class AlarmMessageController extends Controller
     			$alaram_message->message = $request['message'];
     			$alaram_message->event_id = $event_id;
     			$alaram_message->sms_port_id = $sms_port_id;
-    			$alaram_message->sent_to = $event->event_name;
+    			$alaram_message->sent_to = $event->event_name.' event';
+    			$alaram_message->get_fellowship_id = $get_fellowship_id;
     			$alaram_message->sent_by = $user;
     			if($alaram_message->save()) {
     				return response()->json(['message' => 'message scheduled for '. $alaram_message->send_date. ' successfully'], 200);
@@ -171,7 +176,7 @@ class AlarmMessageController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
+    			$sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$sms_port) {
     				return  response()->json(['error' => 'sms port is not found'], 404);
     			}
@@ -190,10 +195,14 @@ class AlarmMessageController extends Controller
 	            else if($contact251) {
 	                $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
 	            }
-	            $phone = Contact::where('phone', '=', $phone_number)->first();
+	            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+	            	return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+	            }
+	            $phone = Contact::where([['phone', '=', $phone_number], ['fellowship_id', '=', $user->fellowship_id]])->first();
 	            if($phone instanceof Contact) {
 	            	$phone_number = $phone->full_name;
 	            }
+	            $get_fellowship_id = $user->fellowship_id;
 
     			$alaram_message = new AlarmMessage();
     			$alaram_message->send_date = $request['send_date'];
@@ -202,6 +211,7 @@ class AlarmMessageController extends Controller
     			$alaram_message->phone = $phone_number;
     			$alaram_message->sent_to = $phone_number;
     			$alaram_message->sms_port_id = $sms_port_id;
+    			$alaram_message->get_fellowship_id = $get_fellowship_id;
     			$alaram_message->sent_by = $user;
     			if($alaram_message->save()) {
     				return response()->json(['message' => 'message scheduled for '. $alaram_message->send_date. ' successfully'], 200);
@@ -220,29 +230,8 @@ class AlarmMessageController extends Controller
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
     			$alarm_message = AlarmMessage::find($id);
-    			if($alarm_message instanceof AlarmMessage) {
+    			if($alarm_message instanceof AlarmMessage && $alarm_message->get_fellowship_id == $user->fellowship_id) {
     				$alarm_message->sent_by = json_decode($alarm_message->sent_by);
-    				// if($alarm_message->team_id != null) {
-    				// 	$team_id = $alarm_message->team_id;
-    				// 	$team = Team::find($team_id);
-    				// 	$alarm_message->team_id = $team->name;
-    				// } else if($alarm_message->fellowship_id != null) {
-    				// 	$fellowship_id = $alarm_message->fellowship_id;
-    				// 	$fellowship = Fellowship::find($fellowship_id);
-    				// 	$alarm_message->fellowship_id = $fellowship->university_name;
-    				// } else if($alarm_message->event_id != null) {
-    				// 	$event_id = $alarm_message->event_id;
-    				// 	$event = Event::find($event_id);
-    				// 	$alarm_message->event_id = $event->event_name;
-    				// } else if($alarm_message->sent_to != null) {
-    				// 	$sent_to = $alarm_message->sent_to;
-    				// 	$contact = Contact::where('phone', '=', $sent_to)->first();
-    				// 	if($contact instanceof Contact) {
-    				// 		$alarm_message->sent_to = $contact->full_name;
-    				// 	} else {
-    				// 		$alarm_message->sent_to = $sent_to;
-    				// 	}
-    				// }
     				return response()->json(['scheduled_message' => $alarm_message], 200);
     			} else {
     				return response()->json(['error' => 'scheduled message is not found'], 404);
@@ -259,35 +248,14 @@ class AlarmMessageController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$alarm_message = AlarmMessage::paginate(10);
+    			// $alarm_message = AlarmMessage::paginate(10);
+    			$alarm_message = AlarmMessage::where('get_fellowship_id', '=', $user->fellowship_id)->paginate(10);
     			$count_message = $alarm_message->count();
     			if($count_message == 0) {
     				return response()->json(['message' => 'scheduled message is empty'], 404);
     			}
     			for($i = 0; $i < $count_message; $i++) {
     				$alarm_message[$i]->sent_by = json_decode($alarm_message[$i]->sent_by);
-    				// if($alarm_message[$i]->team_id != null) {
-    				// 	$team_id = $alarm_message[$i]->team_id;
-    				// 	$team = Team::find($team_id);
-    				// 	$alarm_message[$i]->team_id = $team->name;
-    				// }
-    				// else if($alarm_message[$i]->fellowship_id != null) {
-    				// 	$fellowship_id = $alarm_message[$i]->fellowship_id;
-    				// 	$fellowship = Fellowship::find($fellowship_id);
-    				// 	$alarm_message[$i]->fellowship_id = $fellowship->university_name;
-    				// } else if($alarm_message[$i]->event_id != null) {
-    				// 	$event_id = $alarm_message[$i]->event_id;
-    				// 	$event = Event::find($event_id);
-    				// 	$alarm_message[$i]->event_id = $event->event_name;
-    				// } else if($alarm_message[$i]->sent_to != null) {
-    				// 	$sent_to = $alarm_message[$i]->sent_to;
-    				// 	$contact = Contact::where('phone', '=', $sent_to)->first();
-    				// 	if($contact instanceof Contact) {
-    				// 		$alarm_message[$i]->sent_to = $contact->full_name;
-    				// 	} else {
-    				// 		$alarm_message[$i]->sent_to = $sent_to;
-    				// 	}
-    				// }
     			}
     			return response()->json(['scheduled_messages' => $alarm_message], 200);
     		}
@@ -314,11 +282,11 @@ class AlarmMessageController extends Controller
     			}
     			
     			$alaram_message = AlarmMessage::find($id);
-    			if($alaram_message instanceof AlarmMessage) {
-
+    			if($alaram_message instanceof AlarmMessage && $alaram_message->get_fellowship_id == $user->fellowship_id) {
     				$alaram_message->send_date = isset($request['send_date']) ? $request['send_date'] : $alaram_message->send_date;
     				$alaram_message->send_time = isset($request['send_time']) ? $request['send_time'] : $alaram_message->send_time;
     				$alaram_message->message = isset($request['message']) ? $request['message'] : $alaram_message->message;
+    				$alaram_message->get_fellowship_id = $alaram_message->get_fellowship_id;
     				if($alaram_message->update()) {
     					return response()->json(['message' => 'scheduled message updated successfully'], 200);
     				} else {
@@ -340,7 +308,7 @@ class AlarmMessageController extends Controller
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
     			$alaram_message = AlarmMessage::find($id);
-    			if($alaram_message instanceof AlarmMessage) {
+    			if($alaram_message instanceof AlarmMessage && $alaram_message->get_fellowship_id == $user->fellowship_id) {
     				if($alaram_message->delete()) {
     					return response()->json(['response' => 'scheduled message deleted successfully'], 200);
     				} else {

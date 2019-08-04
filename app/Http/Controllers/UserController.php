@@ -59,6 +59,13 @@ class UserController extends Controller
             else if($contact251) {
                 $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
             }
+            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+            }
+            $check_phone_existance = User::where('phone', $phone_number)->exists();
+            if($check_phone_existance) {
+                return response()->json(['error' => 'The phone has already been taken'], 400);
+            }
             
             $role = Role::where('name', '=', $request->input('role'))->first();
             if($request->input('role') == 'super-admin') {
@@ -115,7 +122,7 @@ class UserController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             // $users = User::all();
-            $users = User::with('roles')->paginate(10);
+            $users = User::where('fellowship_id', '=', $authUser->fellowship_id)->with('roles')->paginate(10);
             return response()->json(['users' => $users], 200);
         } catch(Exception $ex) {
             return response()->json(['error' => $ex->getMessage()] ,$ex->getStatusCode());
@@ -151,6 +158,9 @@ class UserController extends Controller
             }
             else if($contact251) {
                 $phone_number = Str::replaceArray("251", ['+251'], $request['phone']);
+            }
+            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
             }
             // check weather the email exists before
             $check_email_existance = User::where('email', '=',$request['email'])->exists();
@@ -235,7 +245,7 @@ class UserController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $user = User::find($id);
-            if(!$user) {
+            if(!$user || $user->fellowship_id != $authUser->fellowship_id) {
                 return response()->json(['error' => 'user is not found'], 404);
             }        
             $getUser = JWTAuth::parseToken()->toUser();
@@ -275,7 +285,7 @@ class UserController extends Controller
             $user = User::find($id);
             $request = request()->only('status');
             
-            if(!$user) {
+            if(!$user || $user->fellowship_id != $authUser->fellowship_id) {
                 return response()->json(['error' => 'user is not found'], 404);
             }
             $status_rule = [
@@ -302,7 +312,7 @@ class UserController extends Controller
             return response()->json(['token' => 'token expired'], 401);
         }
         $user = User::find($id);
-        if(!$user) {
+        if(!$user || $user->fellowship_id != $authUser->fellowship_id) {
             return response()->json(['error' => 'user is not found'], 404);
         }
         $rule = [
@@ -336,8 +346,8 @@ class UserController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $user = User::find($id);
-            if(!$user) {
-                return response()->json(['message' => 'an error occurred', 'error' => 'specified user is not found'], 404);
+            if(!$user || $user->fellowship_id != $authUser->fellowship_id) {
+                return response()->json(['error' => 'user is not found'], 404);
             }
             $getUserRole = DB::table('role_user')->where('user_id', '=', $id)->first();
             $role_id = $getUserRole->role_id;

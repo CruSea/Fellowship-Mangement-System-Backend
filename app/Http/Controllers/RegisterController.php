@@ -75,7 +75,14 @@ class RegisterController extends Controller
             else if($contact251) {
                 $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
             }
-            
+            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+            }
+            $check_phone_existance = User::where('phone', $phone_number)->exists();
+            if($check_phone_existance) {
+                return response()->json(['error' => 'The phone has already been taken'], 400);
+            }
+
             $fellowship = new Fellowship();
             $fellowship->university_name = $request->input('university_name');
             $fellowship->university_city = $request->input('university_city');
@@ -94,7 +101,7 @@ class RegisterController extends Controller
                     if(!$role) {
                         $user_role = Role::find(4);
                         $user->attachRole($user_role);
-                        return response()->json(['message' => 'user registered successfully'], 201);
+                        return response()->json(['message' => 'successfully registered'], 201);
                     }
                     // $user_role = Role::find(4);
                     $user->attachRole($role);
@@ -112,7 +119,5 @@ class RegisterController extends Controller
         } catch(Exception $ex) {
             return response()->json(['error' => $ex->getMessage()], 500);
         }
-        
-        
     }
 }

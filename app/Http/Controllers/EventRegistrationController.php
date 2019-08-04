@@ -39,13 +39,13 @@ class EventRegistrationController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$event = Event::where('event_name', '=', $request['event'])->first();
+    			$event = Event::where([['event_name', '=', $request['event']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$event) {
     				return response()->json(['error' => 'event is not found'], 404);
     			}
-    			$team = Team::where('name', '=', $request['team'])->first();
+    			$team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if($team instanceof Team) {
-    				$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
+    				$sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     				if($sms_port instanceof SmsPort) {
 
     					$team_id = $team->id;
@@ -57,6 +57,7 @@ class EventRegistrationController extends Controller
 		    			$event_registration->message = $request['message'];
 		    			$event_registration->sent_by = $user;
 		    			$event_registration->sent_to = $team->name;
+		    			$event_registration->get_fellowship_id = $user->fellowship_id;
 		    			$event_registration->save();
 
 		    			
@@ -76,14 +77,15 @@ class EventRegistrationController extends Controller
 			    			for($i = 0; $i < count($contacts); $i++) {
 			    				$contact = $contacts[$i];
 			    				$replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
-			    				$sent_message = new SentMessage([
-			    					'message' => $replaceName,
-			    					'sent_to' => $contact->full_name,
-			    					'is_sent' => false,
-			    					'is_delivered' => false,
-			    					'sms_port_id' => $sms_port_id,
-			    					'sent_by' => $user,
-			    				]);
+			    				
+			    				$sent_message = new SentMessage();
+		                        $sent_message->message = $replaceName;
+		                        $sent_message->sent_to = $contact->full_name;
+		                        $sent_message->is_sent = false;
+		                        $sent_message->is_delivered = false;
+		                        $sent_message->sms_port_id = $sms_port_id;
+		                        $sent_message->fellowship_id = $user->fellowship_id;
+		                        $sent_message->sent_by = $user;
 			    				if(!$sent_message->save()) {
 			    					$sent_message_again = new SentMessage();
 		                			$sent_message_again->message = $replaceName;
@@ -91,6 +93,7 @@ class EventRegistrationController extends Controller
 		                			$sent_message_again->is_sent = false;
 		                			$sent_message_again->is_delivered = false;
 		                			$sent_message_again->sms_port_id = $sms_port_id;
+		                			$sent_message->fellowship_id = $user->fellowship_id;
 		                			$sent_message_again->sent_by = $user;
 			                		$sent_message_again->save();
 			    					// return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not sent'], 500);
@@ -101,14 +104,15 @@ class EventRegistrationController extends Controller
 			    		} else {
 			    			for($i = 0; $i < count($contacts); $i++) {
 			    				$contact = $contacts[$i];
-			    				$sent_message = new SentMessage([
-			    					'message' => $request['message'],
-			    					'sent_to' => $contact->full_name,
-			    					'is_sent' => false,
-			    					'is_delivered' => false,
-			    					'sms_port_id' => $sms_port_id,
-			    					'sent_by' => $user,
-			    				]);
+			    				
+			    				$sent_message = new SentMessage();
+		                        $sent_message->message = $request['message'];
+		                        $sent_message->sent_to = $contact->full_name;
+		                        $sent_message->is_sent = false;
+		                        $sent_message->is_delivered = false;
+		                        $sent_message->sms_port_id = $sms_port_id;
+		                        $sent_message->fellowship_id = $user->fellowship_id;
+		                        $sent_message->sent_by = $user;
 			    				if(!$sent_message->save()) {
 			    					$sent_message_again = new SentMessage();
 		                			$sent_message_again->message = $request['message'];
@@ -116,9 +120,9 @@ class EventRegistrationController extends Controller
 		                			$sent_message_again->is_sent = false;
 		                			$sent_message_again->is_delivered = false;
 		                			$sent_message_again->sms_port_id = $sms_port_id;
+		                			$sent_message->fellowship_id = $user->fellowship_id;
 		                			$sent_message_again->sent_by = $user;
 			                		$sent_message_again->save();
-			    					// return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not sent'], 500);
 
 			    				}
 		    					$insert[] = ['id' => $i+1, 'message' => $sent_message->message, 'phone' => $contact->phone];
@@ -176,11 +180,11 @@ class EventRegistrationController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$event = Event::where('event_name', '=', $request['event'])->first();
+    			$event = Event::where([['event_name', '=', $request['event']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$event) {
     				return response()->json(['error' => 'event not found'], 400);
     			}
-    			$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
+    			$sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if($sms_port instanceof SmsPort) {
     				$fellowship_id = $user->fellowship_id;
     				$sms_port_id = $sms_port->id;
@@ -193,6 +197,7 @@ class EventRegistrationController extends Controller
 	    			$event_registration->message = $request['message'];
 	    			$event_registration->sent_by = $user;
 	    			$event_registration->sent_to = $fellowship->university_name;
+	    			$event_registration->get_fellowship_id = $fellowship_id;
 	    			$event_registration->save();
 
 	    			$contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
@@ -212,14 +217,15 @@ class EventRegistrationController extends Controller
 		                	$contact = $contacts[$i];
 		                	$replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
 		                	if($contact->is_under_graduate) {
-		                		$sent_message = new SentMessage([
-		                			'message' => $replaceName,
-		                			'sent_to' => $contact->full_name,
-		                			'is_sent' => false,
-		                			'is_delivered' => false,
-		                			'sms_port_id' => $sms_port_id,
-		                			'sent_by' => $user,
-		                		]);
+		                		
+		                		$sent_message = new SentMessage();
+		                        $sent_message->message = $replaceName;
+		                        $sent_message->sent_to = $contact->full_name;
+		                        $sent_message->is_sent = false;
+		                        $sent_message->is_delivered = false;
+		                        $sent_message->sms_port_id = $sms_port_id;
+		                        $sent_message->fellowship_id = $user->fellowship_id;
+		                        $sent_message->sent_by = $user;
 		                		if(!$sent_message->save()) {
 		                			$sent_message_again = new SentMessage();
 		                			$sent_message_again->message = $replaceName;
@@ -227,6 +233,7 @@ class EventRegistrationController extends Controller
 		                			$sent_message_again->is_sent = false;
 		                			$sent_message_again->is_delivered = false;
 		                			$sent_message_again->sms_port_id = $sms_port_id;
+		                			$sent_message->fellowship_id = $user->fellowship_id;
 		                			$sent_message_again->sent_by = $user;
 			                		$sent_message_again->save();
 		                		}
@@ -239,14 +246,15 @@ class EventRegistrationController extends Controller
 		                	
 		                	$contact = $contacts[$i];
 		                	if($contact->is_under_graduate) {
-		                		$sent_message = new SentMessage([
-		                			'message' => $request['message'],
-		                			'sent_to' => $contact->full_name,
-		                			'is_sent' => false,
-		                			'is_delivered' => false,
-		                			'sms_port_id' => $sms_port_id,
-		                			'sent_by' => $user,
-		                		]);
+		                		
+		                		$sent_message = new SentMessage();
+		                        $sent_message->message = $request['message'];
+		                        $sent_message->sent_to = $contact->full_name;
+		                        $sent_message->is_sent = false;
+		                        $sent_message->is_delivered = false;
+		                        $sent_message->sms_port_id = $sms_port_id;
+		                        $sent_message->fellowship_id = $user->fellowship_id;
+		                        $sent_message->sent_by = $user;
 		                		if(!$sent_message->save()) {
 		                			$sent_message_again = new SentMessage();
 		                			$sent_message_again->message = $request['message'];
@@ -254,6 +262,7 @@ class EventRegistrationController extends Controller
 		                			$sent_message_again->is_sent = false;
 		                			$sent_message_again->is_delivered = false;
 		                			$sent_message_again->sms_port_id = $sms_port_id;
+		                			$sent_message->fellowship_id = $user->fellowship_id;
 		                			$sent_message_again->sent_by = $user;
 			                		$sent_message_again->save();
 		                		}
@@ -306,11 +315,11 @@ class EventRegistrationController extends Controller
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$event = Event::where('event_name', '=', $request['event'])->first();
+    			$event = Event::where([['event_name', '=', $request['event']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if(!$event) {
     				return response()->json(['error' => 'event not found'], 404);
     			}
-    			$sms_port = SmsPort::where('port_name', '=', $request['port_name'])->first();
+    			$sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if($sms_port instanceof SmsPort) {
     				$sms_port_id = $sms_port->id;
     				$phone_number  = $request['sent_to'];
@@ -326,47 +335,52 @@ class EventRegistrationController extends Controller
 	                else if($contact251) {
 	                    $phone_number = Str::replaceArray("251", ['+251'], $request['sent_to']);
 	                }
+	                if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+		            	return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+		            }
 	                $contains_name = Str::contains($request['message'], '{name}');
-	                $contact = Contact::where('phone', '=', $phone_number)->first();
+	                $contact = Contact::where([['phone', '=', $phone_number], ['fellowship_id', '=', $user->fellowship_id]])->first();
 	                $sent_to = $phone_number;
 	                if($contact instanceof Contact) {
 		    			$sent_to = $contact->full_name;
 	                	if($contains_name) {
 		                    $replaceName = Str::replaceArray('{name}', [$contact->full_name], $request['message']);
-		    				$sent_message = new SentMessage([
-		    					'message' => $replaceName,
-		    					'sent_to' => $contact->full_name,
-		    					'is_sent' => false,
-		    					'is_delivered' => false,
-		    					'sms_port_id' => $sms_port_id,
-		    					'sent_by' => $user,
-		    				]);
+		    				
+		    				$sent_message = new SentMessage();
+	                        $sent_message->message = $replaceName;
+	                        $sent_message->sent_to = $contact->full_name;
+	                        $sent_message->is_sent = false;
+	                        $sent_message->is_delivered = false;
+	                        $sent_message->sms_port_id = $sms_port_id;
+	                        $sent_message->fellowship_id = $user->fellowship_id;
+	                        $sent_message->sent_by = $user;
 		    			} else {
-		    				$sent_message = new SentMessage([
-		    					'message' => $request['message'],
-		    					'sent_to' => $contact->full_name,
-		    					'is_sent' => false,
-		    					'is_delivered' => false,
-		    					'sms_port_id' => $sms_port_id,
-		    					'sent_by' => $user,
-		    				]);
+		    				$sent_message = new SentMessage();
+	                        $sent_message->message = $request['message'];
+	                        $sent_message->sent_to = $contact->full_name;
+	                        $sent_message->is_sent = false;
+	                        $sent_message->is_delivered = false;
+	                        $sent_message->sms_port_id = $sms_port_id;
+	                        $sent_message->fellowship_id = $user->fellowship_id;
+	                        $sent_message->sent_by = $user;
 		    			}
 	    			} else {
-	    				$sent_message = new SentMessage([
-	    					'message' => $request['message'],
-	    					'sent_to' => $phone_number,
-	    					'is_sent' => false,
-	    					'is_delivered' => false,
-	    					'sms_port_id' => $sms_port_id,
-	    					'sent_by' => $user,
-	    				]);
+	    				$sent_message = new SentMessage();
+                        $sent_message->message = $request['message'];
+                        $sent_message->sent_to = $phone_number;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $sms_port_id;
+                        $sent_message->fellowship_id = $user->fellowship_id;
+                        $sent_message->sent_by = $user;
 	    			}
 	    			$event_registration = new EventRegistration();
 	    			$event_registration->event = $request['event'];
-	    			$event_registration->phone = $contact->phone;
+	    			$event_registration->phone = $phone_number;
 	    			$event_registration->sent_to = $sent_to;
 	    			$event_registration->message = $request['message'];
 	    			$event_registration->sent_by = $user;
+	    			$event_registration->get_fellowship_id = $user->fellowship_id;
 	    			$event_registration->save();
 
     				if($sent_message->save()) {
@@ -377,7 +391,7 @@ class EventRegistrationController extends Controller
 		                $message_send_request = array();
 		                $message_send_request['API_KEY'] = $setting->value;
 		                $message_send_request['message'] = $sent_message->message;
-		                $message_send_request['sent_to'] = $contact->phone;
+		                $message_send_request['sent_to'] = $phone_number;
 		                $message_send_request['campaign_id'] = $sms_port->negarit_campaign_id;
 
 		                $negarit_response = $this->sendPostRequest($this->negarit_api_url, 
@@ -417,11 +431,12 @@ class EventRegistrationController extends Controller
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
     			$event_registration = EventRegistration::find($id);
-    			if(!$event_registration) {
+    			if($event_registration instanceof EventRegistration && $event_registration->get_fellowship_id == $user->fellowship_id) {
+    				$event_registration->sent_by = json_decode($event_registration->sent_by);
+    				return response()->json(['event registration' => $event_registration], 200);
+    			} else {
     				return response()->json(['error' => 'event registration is not found'], 404);
     			}
-    			$event_registration->sent_by = json_decode($event_registration->sent_by);
-    			return response()->json(['event registration' => $event_registration], 200);
     		} else {
     			return response()->json(['error' => 'token expired'], 401);
     		}
@@ -433,15 +448,37 @@ class EventRegistrationController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$event_registrations = EventRegistration::paginate(10);
-    			$count = EventRegistration::count();
+    			// $event_registrations = EventRegistration::paginate(10);
+    			$event_registrations = EventRegistration::where('get_fellowship_id', '=', $user->fellowship_id)->paginate(10);
+    			$count = $event_registrations->count();
     			if($count == 0) {
-    				return response()->json(['response' => 'event registration empty'], 404);
+    				return response()->json(['response' => 'event registration not found'], 404);
     			}
     			for($i = 0; $i < $count; $i++) {
     				$event_registrations[$i]->sent_by = json_decode($event_registrations[$i]->sent_by);
     			}
     			return response()->json(['event registrations' => $event_registrations], 200);
+    		} else {
+    			return response()->json(['error' => 'token expired'], 401);
+    		}
+    	} catch(Exception $ex) {
+    		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+    	}
+    }
+    public function deleteEventRegistrationForm($id) {
+    	try {
+    		$user = JWTAuth::parseToken()->toUser();
+    		if($user instanceof User) {
+    			$event_registration = EventRegistration::find($id);
+    			if($event_registration instanceof EventRegistration && $event_registration->get_fellowship_id == $user->fellowship_id) {
+    				if($event_registration->delete()) {
+    					return response()->json(['message' => 'event registration message deleted successfully'], 200);
+    				} else {
+    					return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'event registration message is not deleted'], 500);
+    				}
+    			} else {
+    				return response()->json(['error' => 'event registration not found'], 404);
+    			}
     		} else {
     			return response()->json(['error' => 'token expired'], 401);
     		}

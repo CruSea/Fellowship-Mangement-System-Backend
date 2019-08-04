@@ -79,6 +79,24 @@ Route::group(['prefix' => 'notification'], function() {
 Route::get('/notifications', [
     'uses' => 'NotificationController@getNotifications',
 ]);
+Route::get('/under_graduates_number', [
+    'uses' => 'DashboardController@underGraduateMembersNumber',
+]);
+Route::get('/this_year_graduates_number', [
+    'uses' => 'DashboardController@ThisYearGraduateMembersNumber',
+]);
+Route::get('/post_graduates_number', [
+    'uses' => 'DashboardController@postGraduateMembersNumber',
+]);
+Route::get('/number_of_teams', [
+    'uses' => 'DashboardController@NumberOfTeams',
+]);
+Route::get('/number_of_events', [
+    'uses' => 'DashboardController@NumberOfEvents',
+]);
+Route::get('/events_list', [
+    'uses' => 'DashboardController@eventList',
+]);
 
 // Route::post('/importUsers', [
 //     'uses' => 'UserController@importExcel'
@@ -285,11 +303,14 @@ Route::post('event/addContact/{name}', [
 Route::post('event/importContacts/{name}', [
     'uses' => 'EventController@importContactForEvent'
 ]);
+Route::get('/event/exportContacts/{name}', [
+    'uses' => 'EventController@exportEventContact',
+]);
 
 // post GraduateControllers route
 Route::group(['prefix' => 'post-graduate'], function() {
     Route::post('/', [
-        'uses' => 'ContactController@addContact',
+        'uses' => 'PostGraduatesController@addPostGraduateContact',
     ]);
     Route::get('/{id}', [
         'uses' => 'PostGraduatesController@show',
@@ -301,17 +322,23 @@ Route::group(['prefix' => 'post-graduate'], function() {
         'uses' => 'PostGraduatesController@delete',
     ]);
 });
+Route::post('/importPostGraduateContacts', [
+    'uses' => 'PostGraduatesController@importPostGraduateContact',
+]);
 Route::get('/post-graduates', [
     'uses' => 'PostGraduatesController@getPostGraduates',
 ]);
 
 Route::group(['prefix' => 'post-graduate-team'], function() {
-    // Route::post('/', [
-    //     'uses' => 'TeamController@addTeam',
-    // ]);
-    Route::get('/{id}', [
-        'uses' => 'TeamController@getTeam',
+    Route::post('/', [
+        'uses' => 'TeamController@addTeam',
     ]);
+    Route::post('/importContacts/{name}', [
+        'uses' => 'PostGraduateTeamController@importPostGraduateContactForTeam',
+    ]);
+    // Route::get('/{id}', [
+    //     'uses' => 'PostGraduateTeamController@addPostGraduateMember',
+    // ]);
     // 
     // Route::patch('/{id}', [
     //     'uses' => 'TeamController@updateTeam',
@@ -320,9 +347,9 @@ Route::group(['prefix' => 'post-graduate-team'], function() {
     //     'uses' => 'TeamController@deleteTeam',
     // ]);
     Route::group(['prefix' => '/members/{name}'], function() {
-        // Route::post('/', [
-        //     'uses' => 'PostGraduateTeamController@addPostGraduateMember',
-        // ]);
+        Route::post('/', [
+            'uses' => 'PostGraduateTeamController@addPostGraduateMember',
+        ]);
         Route::get('/', [
             'uses' => 'PostGraduateTeamController@seeMembers',
         ]);
@@ -333,7 +360,7 @@ Route::group(['prefix' => 'post-graduate-team'], function() {
 // graduates route
 Route::group(['prefix' => 'graduate'], function () {
     Route::post('/', [
-        'uses' => 'ContactController@addContact'
+        'uses' => 'GraduateController@addGraduate'
     ]);
     Route::get('/{id}', [
         'uses' => 'GraduateController@show',
@@ -345,6 +372,12 @@ Route::group(['prefix' => 'graduate'], function () {
         'uses' => 'GraduateController@delete',
     ]);
 });
+Route::post('/assign-graduate', [
+    'uses' => 'GraduateController@assignGraduate'
+]);
+Route::post('/importGraduate', [
+    'uses' => 'GraduateController@importGraduate',
+]);
 Route::get('/graduates', [
     'uses' => 'GraduateController@getGraduates',
 ]);
@@ -413,6 +446,9 @@ Route::group(['prefix' => 'send-registration-message'], function() {
     ]);
     Route::get('/{id}', [
         'uses' => 'EventRegistrationController@getEventRegistrationForm',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'EventRegistrationController@deleteEventRegistrationForm',
     ]);
 });
 Route::get('/send-registration-messages', [

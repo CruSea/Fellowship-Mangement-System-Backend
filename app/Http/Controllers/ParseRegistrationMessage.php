@@ -80,21 +80,22 @@ class ParseRegistrationMessage extends Controller
                 if(!$setting) {
                     return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
                 }
-                $sentMessage = new SentMessage([
-                    'message' => "successfully registered for ".$event_trim,
-                    'sent_to' => $contact->phone,
-                    'is_sent' => false,
-                    'is_delivered' => false,
-                    'sms_port_id' => $sms_port_id,
-                    'sent_by' => $user,
-                ]);
-                if($sentMessage->save()) {
+                
+                $sent_message = new SentMessage();
+                $sent_message->message = "successfully registered for ".$event_trim;
+                $sent_message->sent_to = $contact->phone;
+                $sent_message->is_sent = false;
+                $sent_message->is_delivered = false;
+                $sent_message->sms_port_id = $sms_port_id;
+                $sent_message->fellowship_id = $user->fellowship_id;
+                $sent_message->sent_by = $user;
+                if($sent_message->save()) {
                     
                     $get_campaign_id = $sms_port->negarit_campaign_id;
                     $get_api_key = $sms_port->negarit_sms_port_id;
-                    $get_message = $sentMessage->message;
-                    $get_phone = $sentMessage->sent_to;
-                    $get_sender = $sentMessage->sent_by;
+                    $get_message = $sent_message->message;
+                    $get_phone = $sent_message->sent_to;
+                    $get_sender = $sent_message->sent_by;
 
                     // to send a post request (message) for Negarit API 
                     $message_send_request = array();
@@ -110,9 +111,9 @@ class ParseRegistrationMessage extends Controller
                     if($decoded_response) { 
                         if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                             $send_message = $decoded_response->sent_message;
-                            $sentMessage->is_sent = true;
-                            $sentMessage->is_delivered = true;
-                            $sentMessage->update();
+                            $sent_message->is_sent = true;
+                            $sent_message->is_delivered = true;
+                            $sent_message->update();
                             return response()->json(['message' => 'message sent successfully',
                             'sent message' => $send_message], 200);
                         }

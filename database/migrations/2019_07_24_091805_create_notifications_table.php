@@ -16,6 +16,8 @@ class CreateNotificationsTable extends Migration
         Schema::create('notifications', function (Blueprint $table) {
             $table->increments('id');
             $table->string('notification');
+            $table->integer('fellowship_id')->unsigned()->nullable();
+            $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
             $table->timestamps();
         });
     }

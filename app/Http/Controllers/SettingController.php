@@ -31,9 +31,10 @@ class SettingController extends Controller
             if($validator->fails()) {
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
             }
-            $old_setting = Setting::where('name', '=', "API_KEY")->first();
+            $old_setting = Setting::where([['name', '=', "API_KEY"], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if($old_setting instanceof Setting) {
                 $old_setting->name = $old_setting->name;
+                $old_setting->fellowship_id = $old_setting->fellowship_id;
                 $old_setting->value = $request['value'];
                 if($old_setting->update()) {
                     return response()->json(['message' => 'setting successfully updated'], 200);
@@ -44,6 +45,7 @@ class SettingController extends Controller
             } else {
                 $new_setting = new Setting();
                 $new_setting->name = "API_KEY";
+                $new_setting->fellowship_id = $user->fellowship_id;
                 $new_setting->value = $request['value'];
                 if($new_setting->save()) {
                     return response()->json(['message' => 'setting successfully created'], 200);
@@ -63,10 +65,10 @@ class SettingController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $setting = Setting::find($id);
-            if($setting instanceof Setting) {
+            if($setting instanceof Setting && $setting->fellowship_id == $user->fellowship_id) {
                 return response()->json(['setting', $setting], 200);
             }
-            return response()->json(['message' => '404 error found', 'error' => 'setting is not fuond'], 404);
+            return response()->json(['message' => '404 error found', 'error' => 'setting was not fuond'], 404);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -77,10 +79,10 @@ class SettingController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $settings = Setting::all();
-            $countSetting = Setting::count();
+            $settings = Setting::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+            $countSetting = $settings->count();
             if($countSetting == 0) {
-                return response()->json(['message' => 'setting is empty'], 404);
+                return response()->json(['message' => 'setting was not found'], 404);
             }
             return response()->json(['settings' => $settings], 200);
         } catch(Exception $ex) {
@@ -97,7 +99,7 @@ class SettingController extends Controller
             $old_setting = Setting::find($id);
 
             
-            if($old_setting instanceof Setting) {
+            if($old_setting instanceof Setting && $old_setting->fellowship_id == $user->fellowship_id) {
                 $rule = [
                     'value' => 'required|string|min:1',
                 ];
@@ -111,11 +113,10 @@ class SettingController extends Controller
                 }
                 return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'setting is not updated successfully'], 500);
             }
-            return response()->json(['message' => '404 error found', 'error' => 'setting is not found'], 404);
+            return response()->json(['message' => '404 error found', 'error' => 'setting was not found'], 404);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
-        
     }
     public function getCampaigns() {
         try {
@@ -123,7 +124,7 @@ class SettingController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $API_KEY = Setting::where('name', '=', 'API_KEY')->first();
+            $API_KEY = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if($API_KEY instanceof Setting) {
                 $response = $this->sendGetRequest($this->root_url, 'api_request/campaigns?API_KEY='.$API_KEY->value);
                 $decoded_response = json_decode($response);
@@ -141,7 +142,7 @@ class SettingController extends Controller
                     return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                 }
             } else {
-                return response()->json(['message' => '404 error found', 'error' => 'API Key is not found'], 404);
+                return response()->json(['message' => '404 error found', 'error' => 'API Key was not found'], 404);
             }
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
@@ -153,7 +154,7 @@ class SettingController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if($setting instanceof Setting) {
                 $API_KEY = $setting->value;
                 $negarit_response = $this->sendGetRequest($this->root_url, 'api_request/sms_ports?API_KEY='.$API_KEY);
@@ -170,7 +171,7 @@ class SettingController extends Controller
                 }
                 return response()->json(['message' => 'error found', 'error' => $decoded_response], 500);
             }
-            return response()->json(['message' => 'error found', 'error' => 'setting is not found'], 404);
+            return response()->json(['message' => 'error found', 'error' => 'setting was not found'], 404);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -182,16 +183,16 @@ class SettingController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $setting = Setting::find($id);
-            if($setting instanceof Setting) {
+            if($setting instanceof Setting && $setting->fellowship_id == $user->fellowship_id) {
                 if($setting->delete()) {
                     return response()->json(['message' => 'setting deleted successfully'], 200);
                 }
                 else {
                     return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'setting is not deleted successfully'], 500);
                 }
-                return response()->json(['message' => '404 error found', 'error' => 'setting is not found'], 404);
+                return response()->json(['message' => '404 error found', 'error' => 'setting was not found'], 404);
             }
-            return response()->json(['message' => 'setting is not found'], 400);
+            return response()->json(['message' => 'setting was not found'], 400);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

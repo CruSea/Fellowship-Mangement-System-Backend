@@ -16,7 +16,7 @@ class CreateSmsPortsTable extends Migration
     {
         Schema::create('sms_ports', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('port_name')->unique();
+            $table->string('port_name');
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
             $table->string('port_type');

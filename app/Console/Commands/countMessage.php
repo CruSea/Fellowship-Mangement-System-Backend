@@ -20,7 +20,7 @@ class countMessage extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'count sent daily, this month, last month and total messages';
 
     /**
      * Create a new command instance.

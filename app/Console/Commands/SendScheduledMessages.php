@@ -79,7 +79,7 @@ class SendScheduledMessages extends Command
                                 // dd('sent to working '. $daily->sent_to);
                                 $contains_name = Str::contains($daily->message, '{name}');
                                 $replaceName = $daily->message;
-                                $contact = Contact::where('phone', '=', $daily->sent_to)->first();
+                                $contact = Contact::where([['phone', '=', $daily->sent_to], ['fellowship_id', '=', $daily->get_fellowship_id]])->first();
                                 if($contact instanceof Contact) {
                                     if($contains_name) {
                                         $replaceName = Str::replaceArray('{name}', [$contact->full_name], $daily->message);
@@ -246,7 +246,7 @@ class SendScheduledMessages extends Command
                             if($weekly->sent_to != null) {
                                 $contains_name = Str::contains($weekly->message, '{name}');
                                 $replaceName = $weekly->message;
-                                $contact = Contact::where('phone', '=', $weekly->sent_to)->first();
+                                $contact = Contact::where([['phone', '=', $weekly->sent_to], ['fellowship_id', '=', $weekly->get_fellowship_id]])->first();
                                 if($contact instanceof Contact) {
                                     if($contains_name) {
                                         $replaceName = Str::replaceArray('{name}', [$contact->full_name], $weekly->message);
@@ -402,7 +402,7 @@ class SendScheduledMessages extends Command
                             if($monthly->sent_to != null) {
                                 $contains_name = Str::contains($monthly->message, '{name}');
                                 $replaceName = $monthly->message;
-                                $contact = Contact::where('phone', '=', $monthly->sent_to)->first();
+                                $contact = Contact::where([['phone', '=', $monthly->sent_to], ['fellowship_id', '=', $monthly->get_fellowship_id]])->first();
                                 if($contact instanceof Contact) {
                                     if($contains_name) {
                                         $replaceName = Str::replaceArray('{name}', [$contact->full_name], $monthly->message);

@@ -15,8 +15,10 @@ class CreateSettingsTable extends Migration
     {
         Schema::create('settings', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('name')->unique();
+            $table->string('name');
             $table->string('value');
+            $table->integer('fellowship_id')->unsigned()->nullable();
+            $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
             $table->timestamps();
         });
     }

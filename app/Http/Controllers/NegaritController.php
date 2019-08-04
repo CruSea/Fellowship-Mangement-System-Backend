@@ -20,16 +20,16 @@ class NegaritController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
-                return response()->json(['error' => 'user is not found'], 404);
+                return response()->json(['error' => 'token expired'], 401);
             }
 
-            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$setting) {
-                return response()->json(['error' => 'token expired'], 401);
+                return response()->json(['error' => 'setting was not found'], 404);
             }
             $API_KEY = $setting->value;
             $rule = [
-                'port_name' => 'required|string|min:4|unique:sms_ports',
+                'port_name' => 'required|string|min:4',
                 'negarit_sms_port_id' => 'required|integer',
                 'negarit_campaign_id' => 'required|integer',
                 'port_type' => 'required|string'
@@ -40,12 +40,17 @@ class NegaritController extends Controller
             }
             
             $fellowship_id = $user->fellowship_id;
+
+            // check sms port existance before
+            $fellowship_smsPort = SmsPort::where([['port_name', '=', $request->input('port_name')],['fellowship_id', '=', $fellowship_id]])->first();
+            if($fellowship_smsPort) {
+                return response()->json(['error' => 'sms port has already been taken'], 400);
+            }
+
             $smsPort = new SmsPort();
             $smsPort->port_name = $request->input('port_name');
             $smsPort->fellowship_id = $fellowship_id;
             
-
-
             $smsPort->api_key = $API_KEY;
             $smsPort->negarit_sms_port_id = $request->input('negarit_sms_port_id');
             $smsPort->negarit_campaign_id = $request->input('negarit_campaign_id');
@@ -65,7 +70,7 @@ class NegaritController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $smsPort = SmsPort::find($id);
-            if(!$smsPort) {
+            if(!$smsPort || $smsPort->fellowship_id != $user->fellowship_id) {
                 return response()->json(['error' => 'sms port is not found'], 404);
             }
             return response()->json(['sms_port', $smsPort], 200);
@@ -79,12 +84,12 @@ class NegaritController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $smsPort = SmsPort::all();
-            $countSmsPorts = SmsPort::count();
+            $smsPorts = SmsPort::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+            $countSmsPorts = $smsPorts->count();
             if($countSmsPorts == 0) {
-                return response()->json(['message' => 'sms port is empty', 'sms port' =>[]], 404);
+                return response()->json(['message' => 'sms port was not found'], 404);
             }
-            return response()->json(['sms_ports' => $smsPort], 200);
+            return response()->json(['sms_ports' => $smsPorts], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
@@ -92,15 +97,15 @@ class NegaritController extends Controller
     public function updateSmsPort($id) {
         try {
             $user = JWTAuth::parseToken()->toUser();
+            $request = request()->only('port_name', 'port_type', 'api_key', 'negarit_sms_port_id', 'negarit_campaign_id');
+
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
+
             $smsPort = SmsPort::find($id);
-            $request = request()->only('port_name', 'port_type', 'api_key', 'negarit_sms_port_id', 'negarit_campaign_id');
-            if(!$user) {
-                return response()->json(['error' => 'user is not found'], 404);
-            }
-            if(!$smsPort) {
+            
+            if(!$smsPort || $smsPort->fellowship_id != $user->fellowship_id) {
                 return response()->json(['message' => 'an error found', 'error' => 'sms port is not foudn'], 404);
             }
             $rule = [
@@ -114,7 +119,7 @@ class NegaritController extends Controller
                 return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
             }
             // check weather the sms port name exists before
-            $check_smsPort_existance = SmsPort::where('port_name', $request['port_name'])->exists();
+            $check_smsPort_existance = SmsPort::where([['port_name', '=',$request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->exists();
             if($check_smsPort_existance && $request['port_name'] != $smsPort->port_name) {
                 return response()->json(['message' => 'duplication error', 'error' => 'Sms Port has already been taken.'], 400);
             }
@@ -135,19 +140,18 @@ class NegaritController extends Controller
     public function deleteSmsPort($id) {
         try {
             $user = JWTAuth::parseToken()->toUser();
-            if($user instanceof User) {
-                $smsPort = SmsPort::find($id);
-                if(!$smsPort) {
-                    return response()->json(['error' => 'sms port is not found'], 404);
-                }
-                if($smsPort->delete()) {
-                    return response()->json(['message' => 'sms port deleted successfully'], 200);
-                } else {
-                    return response()->json(['error' => 'token expired'], 401);
-                }
-                
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
             }
-            return response()->json(['message' => 'authentication error', 'error' => 'user is not authorized to do this action'], 401);
+            $smsPort = SmsPort::find($id);
+            if(!$smsPort || $smsPort->fellowship_id != $user->fellowship_id) {
+                return response()->json(['error' => 'sms port is not found'], 404);
+            }
+            if($smsPort->delete()) {
+                return response()->json(['message' => 'sms port deleted successfully'], 200);
+            } else {
+                return response()->json(['message' => 'Ooops! something went wrong','error' => 'sms port is not deleted'], 401);
+            }
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

@@ -19,6 +19,8 @@ class CreateTeamMessagesTable extends Migration
             $table->integer('team_id')->unsigned();
             $table->foreign('team_id')->references('id')->on('teams')->onDelete('cascade');
             $table->boolean('under_graduate');
+            $table->integer('fellowship_id')->unsigned()->nullable();
+            $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
             $table->json('sent_by');
             $table->timestamps();
         });

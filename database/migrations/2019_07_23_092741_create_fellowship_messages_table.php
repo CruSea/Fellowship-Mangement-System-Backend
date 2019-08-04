@@ -16,7 +16,8 @@ class CreateFellowshipMessagesTable extends Migration
         Schema::create('fellowship_messages', function (Blueprint $table) {
             $table->increments('id');
             $table->string('message');
-            $table->string('fellowship_name');
+            $table->integer('fellowship_id')->unsigned()->nullable();
+            $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
             $table->boolean('under_graduate');
             $table->json('sent_by');
             $table->timestamps();

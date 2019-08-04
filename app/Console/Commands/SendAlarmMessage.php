@@ -68,7 +68,7 @@ class SendAlarmMessage extends Command
                 if($alarm->sent_to != null) {
                     $contains_name = Str::contains($alarm->message, '{name}');
                     $replaceName = $alarm->message;
-                    $contact = Contact::where('phone', '=', $alarm->sent_to)->first();
+                    $contact = Contact::where([['phone', '=', $alarm->sent_to], ['fellowship_id', '=', $alarm->get_fellowship_id]])->first();
                     if($contact instanceof Contact) {
                         if($contains_name) {
                             $replaceName = Str::replaceArray('{name}', [$contact->full_name], $alarm->message);

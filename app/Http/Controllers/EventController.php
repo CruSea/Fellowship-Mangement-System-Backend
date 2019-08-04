@@ -25,13 +25,19 @@ class EventController extends Controller
     		if($user instanceof User) {
     			$request = request()->only('event_name', 'event_description');
     			$rule = [
-    				'event_name' => 'required|string|min:1|unique:events',
+    				'event_name' => 'required|string|min:1',
     				'event_description' => 'string|nullable',
     			];
     			$validator = Validator::make($request, $rule);
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
+                $fellowship_event = Event::where('fellowship_id', '=', $user->fellowship_id)->first();
+                if($fellowship_event) {
+                    if($fellowship_event->event_name == $request['event_name']) {
+                        return response()->json(['error' => 'event name is has already been taken'], 400);
+                    }
+                }
     			$event = new Event();
     			$event->event_name = $request['event_name'];
     			$event->description = $request['event_description'];
@@ -53,7 +59,7 @@ class EventController extends Controller
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
     			$event = Event::find($id);
-    			if($event instanceof Event) {
+    			if($event instanceof Event && $event->fellowship_id == $user->fellowship_id) {
                     $event->created_by = json_decode($event->created_by);
     				return response()->json(['event' => $event], 200);
     			} else {
@@ -70,8 +76,9 @@ class EventController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$events = Event::paginate(10);
-    			$count_event = Event::count();
+    			// $events = Event::paginate(10);
+                $events = Event::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+    			$count_event = $events->count();
     			if($count_event == 0) {
     				return response()->json(['message' => 'event is empty'], 404);
     			}
@@ -92,7 +99,7 @@ class EventController extends Controller
     		if($user instanceof User) {
     			$request = request()->only('event_name', 'event_description');
     			$rule = [
-    				'event_name' => 'string|min:1',
+    				'event_name' => 'required|string|min:1',
     				'event_description' => 'string|min:1|nullable'
     			];
     			$validator = Validator::make($request, $rule);
@@ -100,7 +107,12 @@ class EventController extends Controller
     				return response()->json(['message' => 'validation error', 'error' => $validator->fails()], 401);
     			}
     			$event = Event::find($id);
-    			if($event instanceof Event) {
+                $check_event_name_existance = Event::where([['event_name', '=', $request['event_name']], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                
+    			if($event instanceof Event && $event->fellowship_id == $user->fellowship_id) {
+                    if($check_event_name_existance && $request['event_name'] != $event->event_name) {
+                        return response()->json(['error' => 'event name has already been taken'], 400);
+                    }
     				$event->event_name = isset($request['event_name']) ? $request['event_name'] : $event->event_name;
     				$event->description = isset($request['description']) ? $request['event_description'] : $event->description;
     				if($event->update()) {
@@ -124,7 +136,7 @@ class EventController extends Controller
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
     			$event = Event::find($id);
-    			if($event instanceof Event) {
+    			if($event instanceof Event && $event->fellowship_id == $user->fellowship_id) {
     				if($event->delete()) {
     					return response()->json(['message' => 'event deleted successfully'],200);
     				}
@@ -148,8 +160,8 @@ class EventController extends Controller
                     'full_name' => 'required|string|max:255',
                     'gender' => 'required|string|max:255',
                     'acadamic_department' => 'string|max:255',
-                    'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
-                    'email' => 'required|email|max:255|unique:contacts',
+                    'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13',
+                    'email' => 'email|max:255|unique:contacts|nullable',
                     'graduation_year' => 'required|string',
                 ];
                 $validator = Validator::make($request->all(), $rule);
@@ -157,7 +169,7 @@ class EventController extends Controller
                     return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 400);
                 }
                 $contactEvent = new ContactEvent();
-                $event = Event::where('event_name', '=', $name)->first();
+                $event = Event::where([['event_name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$event) {
                     return response()->json(['error' => 'event is not found'], 404);
                 }
@@ -174,10 +186,34 @@ class EventController extends Controller
                 else if($contact251) {
                     $phone_number = Str::replaceArray("251", ['+251'], $request->input('phone'));
                 }
-                // check weather the phone exists before
+                if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                    return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+                }
+                // check whether contact found in the same fellowship
+                $check_contact_exists_in_fellowship = Contact::where([['phone', '=', $phone_number], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                if($check_contact_exists_in_fellowship) {
+                    $get_contact = Contact::where('phone', '=', $phone_number)->first();
+                    $event_id = $event->id;
+                    $contact_id = $get_contact->id;
+                    $contactDuplicationInOneEvent = ContactEvent::where([
+                        ['event_id', '=', $event_id],
+                        ['contact_id', '=', $contact_id],
+                    ])->get();
+                    if(count($contactDuplicationInOneEvent) > 0) {
+                        return response()->json(['error' => 'duplication error', 'message' => 'contact is already found in '. $event->event_name .' event'], 403);
+                    } else {
+                        $contactEvent->event_id = $event_id;
+                        $contactEvent->contact_id = $contact_id;
+                        if($contactEvent->save()) {
+                            return response()->json(['message' => 'contact assigned event successfully'], 200);
+                        }
+                        return response()->json(['message' => 'an error occured', 'error' => "contact doesn't assigned a event, please try again"], 500);
+                    }
+                }
+                // check whether the phone exists before
                 $check_phone_existance = Contact::where('phone', $phone_number)->exists();
                 if($check_phone_existance) {
-                    return response()->json(['error' => 'The phone has already been taken', 'message' => 'assign contact by phone number'], 400);
+                    return response()->json(['error' => 'The phone has already been taken'], 400);
                 }
                 $contact = new Contact();
                 $contact->full_name = $request->input('full_name');
@@ -244,11 +280,14 @@ class EventController extends Controller
                 else if($contact251) {
                     $phone_number = Str::replaceArray("251", ['+251'], $request['phone']);
                 }
-                $contact = Contact::where('phone', '=', $phone_number)->first();
+                if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                    return response()->json(['message' => 'validation error', 'error' => 'phone number length is not valid'], 400);
+                }
+                $contact = Contact::where([['phone', '=', $phone_number],['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$contact) {
                     return response()->json(['error' => 'contact is not found'], 404);
                 }
-                $event = Event::where('event_name', '=', $name)->first();
+                $event = Event::where([['event_name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$event) {
                     return response()->json(['error' => 'event is not found'], 404);
                 }
@@ -281,7 +320,7 @@ class EventController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $event = Event::where('event_name', '=', $name)->first();
+                $event = Event::where([['event_name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$event) {
                     return response()->json(['error' => 'event is not found'], 404);
                 }
@@ -311,7 +350,7 @@ class EventController extends Controller
                 if(!$contact) {
                     return response()->json(['error' => 'contact is not found'], 404);
                 } 
-                $event = Event::where('event_name', '=', $name)->first();
+                $event = Event::where([['event_name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$event) {
                     return response()->json(['error' => 'event is not found'], 404);
                 }
@@ -337,7 +376,7 @@ class EventController extends Controller
     public function importContactForEvent($name) {
         try {
             $user = JWTAuth::parseToken()->toUser();
-            $event = Event::where('event_name', '=', $name)->first();
+            $event = Event::where([['event_name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$event) {
                 return response()->json(['error' => 'event is not found'], 404);
             }
@@ -353,23 +392,44 @@ class EventController extends Controller
                         foreach($data as $key => $value) {
                             // phone validation 
                             if($value->phone == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => "validation error", 'error' => "phone can't be null"], 403);
+                                }
                                 return response()->json(['message' => 'validation error', 'error' => "phone can't be null"], 404);
                             }
                             // full_name validation 
                             if($value->full_name == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts. ' contacts added yet','message' => 'validation error', 'error' => "full name can't be null"], 403);
+                                }
                                 return response()->json(['message' => 'validatoin error', 'error' => "full name can't be null"], 404);
                             }
                             // gender validatin
                             if($value->gender == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts. ' contacts added yet','message' => 'validation error', 'error' => "gender can't be null"], 403);
+                                }
                                 return response()->json(['message' => 'validation error', 'error' => "gender can't be null"], 404);
                             }
                             if($value->acadamic_department == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => 'validation error', 'error' => "acadamic department year can't be null"], 404);
+                                }
                                 return response()->json(['message' => 'validation error', 'error' => "acadamic department year can't be null"], 404);
                             }
                             if($value->graduation_year == null) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts.' contacts added yet','message' => 'validation error', 'error' => "graduation year can't be null"], 404);
+                                }
                                 return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
                             }
-                            $team = Team::where('name', '=', $value->team)->first();
+                            $team = Team::where([['name', '=', $value->team], ['fellowship_id', '=', $user->fellowship_id]])->first();
+                            if($value->team != null && !$team) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts.' contacts added yet','error' => $value->team.' team is not found, please add '.$value->team.' team first if you want to add contact to '.$value->team.' team'], 400);
+                                }
+                                return response()->json(['error' => $value->team.' team is not found, please add '.$value->team.' team first if you want to add contact to '.$value->team.' team'], 400);
+                            }
 
                             $phone_number  = $value->phone;
                             $contact0 = Str::startsWith($value->phone, '0');
@@ -384,12 +444,14 @@ class EventController extends Controller
                             else if($contact251) {
                                 $phone_number = Str::replaceArray("251", ['+251'], $value->phone);
                             }
+                            if(strlen($phone_number) > 13 || strlen($phone_number) < 13) {
+                            }
 
-                            // check weather the phone exists before
+                            // check whether the phone exists before
                             $check_phone_existance = Contact::where('phone', $phone_number)->exists();
-                            // check weather the email exists before
+                            // check whether the email exists before
                             $check_email_existance = Contact::where([['email', '=',$value->email],['email', '!=', null]])->exists();
-                            if(!$check_phone_existance && !$check_email_existance&& strlen($phone_number) <= 13) {
+                            if(!$check_phone_existance && !$check_email_existance&& strlen($phone_number) == 13) {
                                 $contact = new Contact();
                                 $contact->full_name = $value->full_name;
                                 $contact->gender = $value->gender;
@@ -416,14 +478,18 @@ class EventController extends Controller
                                 }
                             }
                             if($check_phone_existance) {
-                                $contact = Contact::where('phone', '=', $phone_number)->first();
-                                $contact_event = new ContactEvent();
-                                $check_member_existance = ContactEvent::where([['event_id', '=', $event->id],['contact_id', '=', $contact->id]])->first();
-                                if(!$check_member_existance) {
-                                    $contact_event->event_id = $event->id;
-                                    $contact_event->contact_id = $contact->id;
-                                    $contact_event->save();
-                                    $count_add_contacts++;
+                                // check whether the contact is found in the same felloship
+                                $fellowship_contact = Contact::where([['phone', '=', $phone_number], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                                if($fellowship_contact) {
+                                    $contact = Contact::where('phone', '=', $phone_number)->first();
+                                    $contact_event = new ContactEvent();
+                                    $check_member_existance = ContactEvent::where([['event_id', '=', $event->id],['contact_id', '=', $contact->id]])->first();
+                                    if(!$check_member_existance) {
+                                        $contact_event->event_id = $event->id;
+                                        $contact_event->contact_id = $contact->id;
+                                        $contact_event->save();
+                                        $count_add_contacts++;
+                                    }
                                 }
                             }
                         }
@@ -448,11 +514,12 @@ class EventController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $event = Event::where('event_name', '=', $name)->first();
+                $event = Event::where([['event_name', '=', $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if($event instanceof Event) {
                     $event_id = $event->id;
                     $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $event_id)->select('contact_id')->get())->get()->toArray();
-                    if(count($contacts) == 0) {
+                    $count = $contacts->count();
+                    if($count == 0) {
                         return response()->json(['message' => 'contact is not found in '.$event->event_name.' event'], 404);
                     }
                     $contact_array[] = array('full_name','gender', 'phone', 'email', 'acadamic_department', 'graduation_year', 'created_by', 'created_at', 'updated_at');
