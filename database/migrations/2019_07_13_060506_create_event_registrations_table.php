@@ -15,8 +15,13 @@ class CreateEventRegistrationsTable extends Migration
     {
         Schema::create('event_registrations', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('event');
+            $table->string('registration_key');
+            $table->string('type');
+            $table->string('event')->nullable();
+            $table->boolean('for_contact_update')->default(false);
             $table->string('message');
+            $table->string('success_message')->nullable();
+            $table->string('failed_message')->nullable();
             $table->integer('team_id')->unsigned()->nullable();
             $table->foreign('team_id')->references('id')->on('teams')->onDelete('cascade');
             $table->integer('fellowship_id')->unsigned()->nullable();

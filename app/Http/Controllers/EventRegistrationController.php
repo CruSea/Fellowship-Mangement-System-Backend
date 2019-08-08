@@ -17,31 +17,43 @@ use App\SmsPort;
 use App\Event;
 use App\ContactEvent;
 use JWTAuth;
+use Input;
 
 class EventRegistrationController extends Controller
 {
 	protected $negarit_api_url;
 	public function __construct() {
-		$this->negarit_api_url = 'http://api.negarit.net/api/';
+		$this->negarit_api_url = 'https://api.negarit.net/api/';
 	}
     public function SendRegistrationFormForTeam() {
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$request = request()->only('event', 'port_name', 'team', 'message');
+    			$request = request()->only('registration_key', 'type','event', 'port_name', 'team', 'message', 'success_message', 'failed_message');
     			$rule = [
-    				'event' => 'required|string|min:1',
+    				'registration_key' => 'required|string|min:1',
+    				'type' => 'required|string|min:1',
+    				'event' => 'string|min:1|nullable',
     				'port_name' => 'required|string|min:1',
     				'team' => 'required|string|min:1',
     				'message' => 'required|string|min:1',
+    				'success_message' => 'string|min:1|nullable',
+    				'failed_message' => 'string|min:1|nullable',
     			];
     			$validator = Validator::make($request, $rule);
     			if($validator->fails()) {
     				return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
     			}
-    			$event = Event::where([['event_name', '=', $request['event']], ['fellowship_id', '=', $user->fellowship_id]])->first();
-    			if(!$event) {
-    				return response()->json(['error' => 'event is not found'], 404);
+    			$for_contact_update = false;
+    			$event = null;
+    			if($request['type'] == 'event_registration') {
+    				$event = Event::where([['event_name', '=', $request['event']], ['fellowship_id', '=', $user->fellowship_id]])->first();
+	    			if(!$event) {
+	    				return response()->json(['error' => 'event is not found'], 404);
+	    			}
+    			}
+    			if($request['type'] == 'update_contact') {
+    				$for_contact_update = true;
     			}
     			$team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
     			if($team instanceof Team) {
@@ -51,10 +63,21 @@ class EventRegistrationController extends Controller
     					$team_id = $team->id;
 		    			$sms_port_id = $sms_port->id;
 
+		    			// check event registration founds before
+		    			$check_event_registration = EventRegistration::where([['registration_key', '=', $request['registration_key']], ['get_fellowship_id', '=', $user->fellowship_id]])->exists();
+		    			if($check_event_registration) {
+		    				return response()->json(['error' => $request['registration_key'].' has already assigned before'], 400);
+		    			}
+
     					$event_registration = new EventRegistration();
-		    			$event_registration->event = $request['event'];
+    					$event_registration->registration_key = $request['registration_key'];
+    					$event_registration->type = $request['type'];
+		    			$event_registration->event = $event->event_name;
+		    			$event_registration->for_contact_update = $for_contact_update;
 		    			$event_registration->team_id = $team_id;
 		    			$event_registration->message = $request['message'];
+		    			$event_registration->success_message = $request['success_message'];
+		    			$event_registration->failed_message = $request['failed_message'];
 		    			$event_registration->sent_by = $user;
 		    			$event_registration->sent_to = $team->name;
 		    			$event_registration->get_fellowship_id = $user->fellowship_id;
@@ -485,5 +508,26 @@ class EventRegistrationController extends Controller
     	} catch(Exception $ex) {
     		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
     	}
+    }
+    public function searchEventRegistration() {
+    	try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+            	$search = Input::get('search');
+                if($search) {
+                    $event_registrations = EventRegistration::where([['message', 'LIKE', '%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($event_registrations) > 0) {
+                    	for($i = 0; $i < count($event_registrations); $i++) {
+                    		$event_registrations[$i]->sent_by = json_decode($event_registrations[$i]->sent_by);
+                    	}
+                        return $event_registrations;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
     }
 }

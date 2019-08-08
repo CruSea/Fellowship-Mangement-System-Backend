@@ -15,15 +15,22 @@ use App\Notification;
 use App\Setting;
 use App\SmsPort;
 use App\SentMessage;
+use App\Fellowship;
 use Monolog\Logger;
 
 class ParseRegistrationMessage extends Controller
 {
     protected $negarit_api_url;
     public function __construct() {
-        $this->negarit_api_url = 'http://api.negarit.net/api/';
+        $this->negarit_api_url = 'https://api.negarit.net/api/';
     }
     public function RegisterMembers() {
+        $logger = new Logger("ActionTaskCtrl");
+        $request = request()->all();
+        // $request = request()->only('name');
+        $logger->log(Logger::INFO, "registration formate is not right", [$request]);
+        // return response
+
     	$request = request()->only('message', 'sent_from');
     	$message = $request['message'];
     	$sent_from = $request['sent_from'];
@@ -38,32 +45,43 @@ class ParseRegistrationMessage extends Controller
 
     	$reg_trim = trim($reg);
 
+        $fellowship_id = (int) $reg_trim;
+
+
+
     	$event = $split_message[1];
     	$event_trim = trim($event);
-    	$logger = new Logger("ActionTaskCtrl");
+    	
 
-    	if(strtolower($reg_trim) != "reg") {
-    		$logger->log(Logger::INFO, "registration formate is not right", [$event_trim]);
-    		// return response()->json(['error' => 'the format is not right'], 400);
-    	}
-        $event = Event::where('event_name', '=', $event_trim)->first();
+        $fellowship = Fellowship::find($fellowship_id);
+        if(!$fellowship) {
+            $logger->log(Logger::INFO, "registration formate is not right", [$event_trim]);
+            exit();
+        }
+    	// if(strtolower($reg_trim) != "reg") {
+    	// 	$logger->log(Logger::INFO, "registration formate is not right", [$event_trim]);
+    	// 	// return response()->json(['error' => 'the format is not right'], 400);
+    	// }
+        $event = Event::where([['event_name', '=', $event_trim], ['fellowship_id', '=', $fellowship_id]])->first();
         if(!$event) {
             exit();
         }
 
     	
     	// $logger->log(Logger::INFO, "NEGARIT_LOG", [$event_trim]);
-        $lastMessage = SentMessage::latest()->first();
+        // $lastMessage = SentMessage::latest()->first();
+        // $contact = Contact::where('fellowship_id', '=', $user->fellowship_id)->latest()->first();
+        $lastMessage = SentMessage::where('fellowship_id', '=', $fellowship_id)->latest()->first();
         $user = $lastMessage->sent_by;
-        $setting = Setting::where('name', '=', 'API_KEY')->first();
-        $sms_port = SmsPort::latest()->first();
+        $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $fellowship_id]])->first();
+        $sms_port = SmsPort::where('fellowship_id', '=', $fellowship_id)->latest()->first();
         $sms_port_id = $sms_port->id;
 
         $notification = new Notification();
     	$event_id = $event->id;
     	$contact_event = new ContactEvent();
 
-        $contact = Contact::where('phone', '=', $sent_from)->first();
+        $contact = Contact::where([['phone', '=', $sent_from], ['fellowship_id', '=', $fellowship_id]])->first();
         if($contact instanceof Contact) {
             $is_registered = ContactEvent::where([['event_id', '=', $event_id],['contact_id', '=', $contact->id]])->first();
             if($is_registered) {

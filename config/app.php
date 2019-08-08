@@ -181,6 +181,8 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
+        // Barryvdh\Cors\ServiceProvider::class,
+
     ],
 
     /*
@@ -234,6 +236,7 @@ return [
         'Input' => Illuminate\Support\Facades\Input::class,
         'Entrust'   => Zizaco\Entrust\EntrustFacade::class,
         'Excel' => Maatwebsite\Excel\Facades\Excel::class,
+        // 'Debugbar' => Barryvdh\Debugbar\Facade::class,
     ],
 
 ];

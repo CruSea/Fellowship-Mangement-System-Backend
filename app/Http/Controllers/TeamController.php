@@ -15,6 +15,7 @@ use Input;
 use Excel;
 use JWTAuth;
 use DateTime;
+use Carbon\Carbon;
 
 class TeamController extends Controller
 {
@@ -158,6 +159,27 @@ class TeamController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
+    public function searchTeam() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+                    $teams = Team::where([['name', 'LIKE', '%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($teams) > 0) {
+                        for($i = 0; $i < count($teams); $i++) {
+                            $teams[$i]->created_by = json_decode($teams[$i]->created_by);
+                        }
+                        return $teams;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    }
     public function assignMembers($name) {
         try {
             $user = JWTAuth::parseToken()->toUser();
@@ -291,6 +313,18 @@ class TeamController extends Controller
             if($check_phone_existance) {
                 return response()->json(['error' => 'The phone has already been taken'], 400);
             }
+            // check whethe contact is under graduate
+            $this_year_gc = false;
+            $graduationYear = $request['graduation_year'].'-07-30';
+            $parse_graduation_year = Carbon::parse($graduationYear);
+            $today = Carbon::parse(date('Y-m-d'));
+            $difference = $today->diffInDays($parse_graduation_year, false);
+            
+            if($difference <= 0) {
+                return response()->json(['error' => 'graduation year is not valid for under graduate member'], 400);
+            } else if($difference < 380 && $difference > 0) {
+                $this_year_gc = true;
+            }
                  
             $contact = new Contact();
             $contact->full_name = $request->input('full_name');
@@ -300,7 +334,7 @@ class TeamController extends Controller
             $contact->acadamic_department = $request->input('acadamic_department');
             $contact->graduation_year = $request['graduation_year'].'-07-30';
             $contact->is_under_graduate = true;
-            $contact->is_this_year_gc = false;
+            $contact->is_this_year_gc = $this_year_gc;
             $contact->fellowship_id = $user->fellowship_id;
             $contact->created_by = $user->full_name;
 
@@ -489,6 +523,21 @@ class TeamController extends Controller
                                 }
                                 return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
                             }
+                            // check whethe contact is under graduate
+                            $this_year_gc = false;
+                            $graduationYear = $value->graduation_year.'-07-30';
+                            $parse_graduation_year = Carbon::parse($graduationYear);
+                            $today = Carbon::parse(date('Y-m-d'));
+                            $difference = $today->diffInDays($parse_graduation_year, false);
+                            
+                            if($difference <= 0) {
+                                if($count_add_contacts > 0) {
+                                    return response()->json(['response' => $count_add_contacts.' contacts added yet','error' => 'graduation year is not valid for under graduate member'], 400);
+                                }
+                                return response()->json(['error' => 'graduation year is not valid for under graduate member'], 400);
+                            } else if($difference < 380 && $difference > 0) {
+                                $this_year_gc = true;
+                            }
 
                             $phone_number  = $value->phone;
                             $contact0 = Str::startsWith($value->phone, '0');
@@ -520,7 +569,7 @@ class TeamController extends Controller
                                 $contact->graduation_year = $value->graduation_year.'-07-30';
                                 $contact->fellowship_id = $user->fellowship_id;
                                 $contact->is_under_graduate = true;
-                                $contact->is_this_year_gc = false;
+                                $contact->is_this_year_gc = $this_year_gc;
                                 $contact->created_by = $user->full_name;
                                 if($contact->save()) {
                                     $contact_team = new ContactTeam();
@@ -548,9 +597,11 @@ class TeamController extends Controller
                             }
                         }
                         if($count_add_contacts == 0) {
-                            dd('member is not added to '.$team->name.' team');
+                            return response()->json(['message' => 'member is not added to '.$team->name.' team'], 404);
+                            // dd('member is not added to '.$team->name.' team');
                         }
-                        dd($count_add_contacts.' contacts added to '.$team->name.' team successfully');
+                        return response()->json(['message' => $count_add_contacts.' contacts added to '.$team->name.' team successfully'], 200);
+                        // dd($count_add_contacts.' contacts added to '.$team->name.' team successfully');
                     }
                     else {
                         return response()->json(['message' => 'file is empty', 'error' => 'unable to add contact'], 404);

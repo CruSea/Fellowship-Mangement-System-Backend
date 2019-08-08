@@ -15,6 +15,7 @@ use Input;
 use JWTAuth;
 use Excel;
 use DateTime;
+use Carbon\Carbon;
 
 class ContactController extends Controller
 {
@@ -64,6 +65,21 @@ class ContactController extends Controller
             if($check_phone_existance) {
                 return response()->json(['error' => 'The phone has already been taken'], 400);
             }
+
+            // check whethe contact is under graduate
+            // if user is post graduate return error
+            $this_year_gc = false;
+            $graduationYear = $request['graduation_year'].'-07-30';
+            $parse_graduation_year = Carbon::parse($graduationYear);
+            $today = Carbon::parse(date('Y-m-d'));
+            $difference = $today->diffInDays($parse_graduation_year, false);
+            
+            if($difference <= 0) {
+                return response()->json(['error' => 'graduation year is not valid for under graduate member'], 400);
+            } else if($difference < 380 && $difference > 0) {
+                $this_year_gc = true;
+            }
+
             $contact = new Contact();
             $contact->full_name = $request['full_name'];
             $contact->gender = $request['gender'];
@@ -73,7 +89,7 @@ class ContactController extends Controller
             $contact->graduation_year = $request['graduation_year'].'-07-30';
             $contact->fellowship_id = $user->fellowship_id;
             $contact->is_under_graduate = true;
-            $contact->is_this_year_gc = false;
+            $contact->is_this_year_gc = $this_year_gc;
             $contact->created_by = $user->full_name;
             $team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
 
@@ -184,12 +200,25 @@ class ContactController extends Controller
                         return response()->json(['error' => 'The email has already been taken'], 400);
                     }
                 }
+                // check whethe contact is under graduate
+                $this_year_gc = false;
+                $graduationYear = $request['graduation_year'].'-07-30';
+                $parse_graduation_year = Carbon::parse($graduationYear);
+                $today = Carbon::parse(date('Y-m-d'));
+                $difference = $today->diffInDays($parse_graduation_year, false);
+                
+                if($difference <= 0) {
+                    return response()->json(['error' => 'graduation year is not valid for under graduate member'], 400);
+                } else if($difference < 380 && $difference > 0) {
+                    $this_year_gc = true;
+                }
                 $contact->full_name = isset($request['full_name']) ? $request['full_name'] : $contact->full_name;
                 $contact->gender = isset($request['gender']) ? $request['gender'] : $contact->gender;
                 $contact->phone = isset($request['phone']) ? $phone_number : $contact->phone;
                 $contact->email = isset($request['email']) ? $request['email'] : $contact->email;
                 $contact->acadamic_department = isset($request['acadamic_department']) ? $request['acadamic_department'] : $contact->acadamic_department;
                 $contact->graduation_year = isset($request['graduation_year']) ? $request['graduation_year'].'-07-30' : $contact->graduation_year;
+                $contact->is_this_year_gc = $this_year_gc;
                 if($contact->update()) {
                     return response()->json(['message' => 'contact updated seccessfully'], 200);
                 } 
@@ -201,6 +230,69 @@ class ContactController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
+    public function deleteContact($id) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+            $contact = Contact::find($id);
+            if($contact instanceof Contact && $contact->fellowship_id == $user->fellowship_id) {
+                if($contact->delete()) {
+                    return response()->json(['message' => 'contact deleted successfully'], 200);
+                }
+                return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to delete contact'], 500);
+            } 
+            return response()->json(['message' => 'an error occurred', 'error' => 'contact is not found'], 404);
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function searchContact(Request $request) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $input = $request->all();
+                $contacts = Contact::query();
+                $search = Input::get('search');
+                if($search) {
+                    $contacts = $contacts->where([['full_name', 'LIKE', '%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id], ['is_under_graduate', '=', true]])->orWhere([['phone', 'LIKE','%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id], ['is_under_graduate', '=', true]])->get();
+                    if(count($contacts) > 0) {
+                        return $contacts;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    // public function searchContact(Request $request) {
+    //     try {
+    //         $user = JWTAuth::parseToken()->toUser();
+    //         if($user instanceof User) {
+    //             // if($request->ajax()) {
+    //                 $output = "";
+    //                 $contacts = Contact::where('full_name', 'LIKE', '%'.$request->input('search').'%')->get();
+    //                 if($contacts) {
+    //                     foreach ($contacts as $key => $contact) {
+    //                         $output.='<tr>'.
+    //                         '<td>'.$contact->id.'</td>'.
+    //                         '<td>'.$contact->full_name.'</td>'.
+    //                         '<td>'.$contact->phone.'</td>'.
+    //                         '</tr>';
+    //                     }
+    //                     return response()->json(['contacts' => $output], 200);
+    //                 }
+    //             // }
+    //         } else {
+    //             return response()->json(['error' => 'token expired'], 200);
+    //         }
+    //     } catch(Exception $ex) {
+    //         return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+    //     }
+    // }
     public function importContact() { 
         $user = JWTAuth::parseToken()->toUser();
         if(!$user) {
@@ -246,6 +338,21 @@ class ContactController extends Controller
                         }
                         return response()->json(['message' => 'validation error', 'error' => "graduation year can't be null"], 404);
                     }
+                    // check whethe contact is under graduate
+                    $this_year_gc = false;
+                    $graduationYear = $value->graduation_year.'-07-30';
+                    $parse_graduation_year = Carbon::parse($graduationYear);
+                    $today = Carbon::parse(date('Y-m-d'));
+                    $difference = $today->diffInDays($parse_graduation_year, false);
+                    
+                    if($difference <= 0) {
+                        if($count_add_contacts > 0) {
+                            return response()->json(['response' => $count_add_contacts.' contacts added yet','error' => 'graduation year is not valid for under graduate member'], 400);
+                        }
+                        return response()->json(['error' => 'graduation year is not valid for under graduate member'], 400);
+                    } else if($difference < 380 && $difference > 0) {
+                        $this_year_gc = true;
+                    }
                     $team = Team::where([['name', '=', $value->team], ['fellowship_id', '=', $user->fellowship_id]])->first();
                     if($value->team != null && !$team) {
                         if($count_add_contacts > 0) {
@@ -282,7 +389,7 @@ class ContactController extends Controller
                         $contact->graduation_year = $value->graduation_year.'-07-30';
                         $contact->fellowship_id = $user->fellowship_id;
                         $contact->is_under_graduate = true;
-                        $contact->is_this_year_gc = false;
+                        $contact->is_this_year_gc = $this_year_gc;
                         $contact->created_by = $user->full_name;
                         if($contact->save()) {
                             if($value->team != null && $team instanceof Team) {
@@ -305,24 +412,6 @@ class ContactController extends Controller
             }
         }
         return response()->json(['message' => 'File not found', 'error' => 'Contact File is not provided'], 404);
-    }
-    public function deleteContact($id) {
-        try {
-            $user = JWTAuth::parseToken()->toUser();
-            if(!$user) {
-                return response()->json(['error' => 'token expired'], 401);
-            }
-            $contact = Contact::find($id);
-            if($contact instanceof Contact && $contact->fellowship_id == $user->fellowship_id) {
-                if($contact->delete()) {
-                    return response()->json(['message' => 'contact deleted successfully'], 200);
-                }
-                return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to delete contact'], 500);
-            } 
-            return response()->json(['message' => 'an error occurred', 'error' => 'contact is not found'], 404);
-        } catch(Exception $ex) {
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
-        }
     }
     public function exportContact() {
         try {

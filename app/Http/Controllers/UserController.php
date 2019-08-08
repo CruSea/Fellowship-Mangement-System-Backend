@@ -12,11 +12,13 @@ use App\Role;
 use App\UserRole;
 use App\Fellowship;
 use App\Notification;
+use App\Mail\NotifyUserStatusActivatedMail;
 use Auth;
 use Input;
 use JWTAuth;
 use DateTime;
 use Excel;
+use Mail;
 class UserController extends Controller
 {
     public function __construct() {
@@ -288,6 +290,18 @@ class UserController extends Controller
             if(!$user || $user->fellowship_id != $authUser->fellowship_id) {
                 return response()->json(['error' => 'user is not found'], 404);
             }
+            $full_name = $user->full_name;
+            $fellowship_id = $user->fellowship_id;
+            $fellowship = Fellowship::find($fellowship_id);
+            $fellowship_name = $fellowship->university_name;
+            $email = $user->email;
+
+            $user_role = DB::table('role_user')->where('user_id', '=', $id)->first();
+            $role_id = $user_role->role_id;
+            $role = Role::find($role_id);
+            $role_name = $role->name;
+
+
             $status_rule = [
                 'status' => 'boolean',
             ];
@@ -297,8 +311,17 @@ class UserController extends Controller
             }
             $user->status = $request['status'];
             $user->updated_at = new DateTime();
-            if($user->save()) {
+            if($user->update()) {
+                if($user->status == 1) {
+                    $data = array('name' => 'Fellowship Management System', 'Owner' => 'Great Commision of Ethiopia');
+                Mail::to($email)->send(new NotifyUserStatusActivatedMail($full_name, $fellowship_name, $role_name), $data, function($message) use ($full_name, $email) {
+                    $message->to($email, $full_name)
+                            ->subject('Hello '.$full_name);
+                    $message->from('mamesmsdesta@gmail.com', 'Eyosias Desta');
+                });
                 return response()->json(['message' => 'status updated successfully'], 200);
+                }
+                return response()->json(['message' => 'status updated successfully----'], 200);
             } else {
                 return response()->json(['error' => 'Ooops! something went wrong'], 500);
             }
@@ -352,9 +375,28 @@ class UserController extends Controller
             $getUserRole = DB::table('role_user')->where('user_id', '=', $id)->first();
             $role_id = $getUserRole->role_id;
             $role = Role::find($role_id);
-            return response()->json(['user Role' => $role], 200);
+            return response()->json(['user_Role' => $role], 200);
         }catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => $ex->getMessage], $ex->getStatusCode());
+        }
+    }
+    protected function searchUser() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+
+                    $users = User::where([['full_name', 'LIKE', '%'.$search.'%'],['fellowship_id', '=', $user->fellowship_id]])->orWhere([['phone', 'LIKE', '%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id]])->with('roles')->get();
+                    if(count($users) > 0) {
+                        return $users;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
         }
     }
 }

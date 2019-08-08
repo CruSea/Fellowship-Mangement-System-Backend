@@ -14,6 +14,7 @@ use App\Event;
 use App\SmsPort;
 use Carbon\Carbon;
 use JWTAuth;
+use Input;
 
 class AlarmMessageController extends Controller
 {
@@ -324,5 +325,27 @@ class AlarmMessageController extends Controller
     	} catch(Exception $ex) {
     		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
     	}
+    }
+    public function searchAlarmMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+
+                    $messages = AlarmMessage::where([['message', 'LIKE', '%'.$search.'%'], ['get_fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($messages) > 0) {
+                        for($i = 0; $i < count($messages); $i++) {
+                            $messages[$i]->sent_by = json_decode($messages[$i]->sent_by);
+                        }
+                        return $messages;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
     }
 }

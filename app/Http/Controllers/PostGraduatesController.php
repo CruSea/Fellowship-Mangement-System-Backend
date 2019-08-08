@@ -228,6 +228,25 @@ class PostGraduatesController extends Controller
     		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
     	}
     }
+    public function searchPostGraduate() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                // $contacts = Contact::query();
+                $search = Input::get('search');
+                if($search) {
+                    $contacts = Contact::where([['full_name', 'LIKE', '%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id], ['is_under_graduate', '=', false]])->orWhere([['phone', 'LIKE','%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id], ['is_under_graduate', '=', true]])->get();
+                    if(count($contacts) > 0) {
+                        return $contacts;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
     public function importPostGraduateContact() { 
         $user = JWTAuth::parseToken()->toUser();
         if(!$user) {

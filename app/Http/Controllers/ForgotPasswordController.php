@@ -53,7 +53,7 @@ class ForgotPasswordController extends Controller
         if($old_token) {
             return $old_token->token;
         }
-        $token = str_random(60);
+        $token = str_random(8);
         $this->saveToken($token, $email);
         return $token;
     }

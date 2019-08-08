@@ -281,6 +281,25 @@ class GraduateController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
+    public function searchGraduate() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                // $contacts = Contact::query();
+                $search = Input::get('search');
+                if($search) {
+                    $contacts = Contact::where([['full_name', 'LIKE', '%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id], ['is_this_year_gc', '=', true]])->orWhere([['phone', 'LIKE','%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id], ['is_under_graduate', '=', true]])->get();
+                    if(count($contacts) > 0) {
+                        return $contacts;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
     public function importGraduate() { 
         $user = JWTAuth::parseToken()->toUser();
         if(!$user) {
@@ -388,5 +407,41 @@ class GraduateController extends Controller
             }
         }
         return response()->json(['message' => 'File not found', 'error' => 'Contact File is not provided'], 404);
+    }
+    public function exportThisYearGraduates() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $contacts = Contact::where([['is_this_year_gc', '=', 1], ['fellowship_id', '=', $user->fellowship_id]])->get()->toArray();
+                if(count($contacts) == 0) {
+                    return response()->json(['message' => 'under graduate member is not found'], 404);
+                }
+                $contact_array[] = array('full_name','gender', 'phone', 'email', 'acadamic_department', 'graduation_year', 'created_by', 'created_at', 'updated_at');
+                foreach ($contacts as $contact) {
+                    $contact_array[] = array(
+                        'full_name' => $contact->full_name,
+                        'gender' => $contact->gender,
+                        'phone' => $contact->phone,
+                        'email' => $contact->email,
+                        'acadamic_department' => $contact->acadamic_department,
+                        'graduation_year' => $contact->graduation_year,
+                        'created_by' => $contact->created_by,
+                        'created_at' => $contact->created_at,
+                        'updated_at' => $contact->updated_at,
+                    );
+                }
+                Excel::create('contacts', function($excel) use(
+                    $contact_array) {
+                    $excel->setTitle('contacts');
+                    $excel->sheet('contacts', function($sheet) use($contact_array) {
+                        $sheet->fromArray($contact_array, null, 'A1', false, false);
+                    });
+                })->download('xlsx');
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
     }
 }

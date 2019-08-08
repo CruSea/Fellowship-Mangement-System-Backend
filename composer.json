@@ -11,7 +11,9 @@
         "maatwebsite/excel": "~2.1.0",
         "sukohi/csv-validator": "2.*",
         "tymon/jwt-auth": "^0.5.12",
-        "zizaco/entrust": "5.2.x-dev"
+        "zizaco/entrust": "5.2.x-dev",
+        "rackspace/php-opencloud": "dev-master",
+        "barryvdh/laravel-cors": "0.2.x"
     },
     "require-dev": {
         "fzaninotto/faker": "~1.4",
@@ -51,5 +53,12 @@
         "preferred-install": "dist",
         "sort-packages": true,
         "optimize-autoloader": true
-    }
+    },
+    "repositories": [
+        {
+             "type": "composer", 
+             "url": "https://packagist.org" 
+        },
+        { "packagist": false }
+    ]
 }

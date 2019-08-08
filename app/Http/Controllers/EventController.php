@@ -38,6 +38,11 @@ class EventController extends Controller
                         return response()->json(['error' => 'event name is has already been taken'], 400);
                     }
                 }
+                // check event existance before
+                $get_event = Event::where([['event_name', '=', $request['event_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
+                if($get_event instanceof Event) {
+                    return response()->json(['error' => 'event name has already been taken'], 400);
+                }
     			$event = new Event();
     			$event->event_name = $request['event_name'];
     			$event->description = $request['event_description'];
@@ -151,6 +156,27 @@ class EventController extends Controller
     	} catch(Exception $ex) {
     		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
     	}
+    }
+    public function searchEvent(Request $request) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+                    $events = Event::where([['event_name', 'LIKE', '%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($events) > 0) {
+                        for($i = 0; $i < count($events); $i++) {
+                            $events[$i]->created_by = json_decode($events[$i]->created_by);
+                        }
+                        return $events;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
     }
     public function addContact(Request $request, $name) {
         try {

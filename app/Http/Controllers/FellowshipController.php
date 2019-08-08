@@ -50,7 +50,8 @@ class FellowshipController extends Controller
     			$fellowship->specific_place = $request['specific_place'];
 
     			if($fellowship->update()) {
-                    $notification->notification = "Fellowship profile has been updated by ".$user->full_name. " on ". date('Y-m-d');
+                    $notification->notification = "Fellowship profile has been updated by ".$user->full_name;
+                    $notification->fellowship_id = $fellowship_id;
                     $notification->save();
     				return response()->json(['message' => 'fellowship updated successfully'], 200);
     			} else {

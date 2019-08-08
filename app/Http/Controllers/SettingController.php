@@ -14,7 +14,8 @@ class SettingController extends Controller
         $this->middleware('ability:,get-setting', ['only' => ['getSetting', 'getSettings']]);
         $this->middleware('ability:,update-setting', ['only' => ['updateSetting']]);
         $this->middleware('ability:,delete-setting', ['only' => ['deleteSetting']]);
-        $this->root_url = "http://api.negarit.net/api/";
+        // $this->root_url = "https://api.negarit.net/api/";
+        $this->root_url = "https://api.negarit.net/api/";
     }
     public function createSetting() {
         try {
@@ -125,8 +126,9 @@ class SettingController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $API_KEY = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
+            // return $this->root_url.'api_request/campaigns?API_KEY='.$API_KEY->value;
             if($API_KEY instanceof Setting) {
-                $response = $this->sendGetRequest($this->root_url, 'api_request/campaigns?API_KEY='.$API_KEY->value);
+                $response = $this->sendGetRequest('https://api.negarit.net/api/', 'api_request/campaigns?API_KEY='.$API_KEY->value);
                 $decoded_response = json_decode($response);
                 if($decoded_response) {
                     if(isset($decoded_response->campaigns)) {

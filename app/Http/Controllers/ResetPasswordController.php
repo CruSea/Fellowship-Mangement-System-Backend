@@ -49,7 +49,7 @@ class ResetPasswordController extends Controller
         return $this->getPasswordRestTableRow($request)->count() > 0 ? $this->changePassword($request) : $this->tokenNotFoundResponse();
     }
     private function getPasswordRestTableRow($request) {
-        return DB::table('password_resets')->where(['email' => $request->email]);
+        return DB::table('password_resets')->where([['email', '=', $request->email], ['token', '=', $request->reset_code]]);
     }
 
     private function tokenNotFoundResponse() {

@@ -20,6 +20,7 @@ use JWTAuth;
 use App\SentMessage;
 use App\SmsPort;
 use App\Setting;
+use Input;
 
 class MessageController extends Controller
 {
@@ -28,7 +29,7 @@ class MessageController extends Controller
         $this->middleware('ability:,send-message', ['only' => ['sendContactMessage', 'sendTeamMessage']]);
         $this->middleware('ability:,get-message', ['only' => ['getContactMessage', 'getContactsMessages', 'getNegaritRecievedMessage']]);
         $this->middleware('ability:,delete-contact-message', ['only' => ['deleteContactMessage']]);
-        $this->negarit_api_url = 'http://api.negarit.net/api/';
+        $this->negarit_api_url = 'https://api.negarit.net/api/';
     }
     public function sendContactMessage() {
         try {
@@ -132,8 +133,10 @@ class MessageController extends Controller
                 $message_send_request['message'] = $get_message;
                 $message_send_request['sent_to'] = $get_phone;
                 $message_send_request['campaign_id'] = $get_campaign_id;
+                // return $get_campaign_id;
+                // return $setting->value;
                 $negarit_response = $this->sendPostRequest($this->negarit_api_url, 
-                        'api_request/sent_message?API_KEY?='.$setting->value, 
+                        'api_request/sent_message?API_KEY='.$setting->value, 
                         json_encode($message_send_request));
                 $decoded_response = json_decode($negarit_response);
                 if($decoded_response) { 
@@ -1064,6 +1067,45 @@ class MessageController extends Controller
             return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'],404);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function searchContactMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+                    $messages = SentMessage::where([['message', 'LIKE', '%'.$search.'%'], ['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($messages) > 0) {
+                        for($i = 0; $i < count($messages); $i++) {
+                            $messages[$i]->sent_by = json_decode($messages[$i]->sent_by);
+                        }
+                        return $messages;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    }
+    public function searchFellowshipMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+                    $fellowship_message = FellowshipMessage::where([['message', 'LIKE', '%'.$search.'%'],['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($fellowship_message) > 0) {
+                        return $fellowship_message;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
         }
     }
 }

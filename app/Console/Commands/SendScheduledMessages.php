@@ -44,7 +44,7 @@ class SendScheduledMessages extends Command
     public function __construct()
     {
         parent::__construct();
-        $this->negarit_api_url = 'http://api.negarit.net/api/';
+        $this->negarit_api_url = 'https://api.negarit.net/api/';
     }
 
     /**

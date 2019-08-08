@@ -41,34 +41,40 @@ class UpdateContactToPostGraduate extends Command
     public function handle()
     {
         // check whether contact is graduated
-        $post_graduates = Contact::whereDate('graduation_year', '<', Carbon::now())->get();
+        $post_graduates = Contact::whereDate('graduation_year', '<', date('Y-m-d'))->get();
         // update under graduate contact to post graduate
         for ($i = 0; $i < count($post_graduates); $i++) {
-            Contact::where('graduation_year', '<', Carbon::now())->update(['is_under_graduate' => 1]);
+            Contact::where('graduation_year', '<', date('Y-m-d'))->update(['is_under_graduate' => 0, 'is_this_year_gc' => 0]);
         }
 
         // check whether contact is this year graduate
         $this_year_graduate = Contact::where('is_this_year_gc', '=', 0)->get();
         $contacts = Contact::all();
 
-        for($j = 1; $j < count($contacts) - 1; $j++) {
-            $contact = Contact::find($j);
+        foreach ($contacts as $contact) {
             $graduation_year = $contact->graduation_year;
-            $today = Carbon::parse(Carbon::now());
+            $today = Carbon::parse(date('Y-m-d'));
             $parse_graduation_year = Carbon::parse($graduation_year);
-            $difference = $parse_graduation_year->diffInDays($now_date, false);
-            if($difference < 360) {
+            $difference = $today->diffInDays($parse_graduation_year, false);
+            if($difference < 380 && $difference > 0) {
                 $contact->is_this_year_gc = 1;
-                $contact->save();
+                $contact->is_under_graduate = 1;
+                $contact->update();
             }
-            
         }
-        // $contact = Contact::find(1);
-        // $gra_year= $contact->graduation_year;
-        // $parsed_date = Carbon::parse($gra_year);
-        // $now_date = Carbon::parse(Carbon::now());
-        // $sub = $parsed_date->diffInDays($now_date, false);
-        // $count = count($post_graduates);
-        // dd($sub);
+        foreach ($contacts as $under_graduate) {
+
+            $graduationYear = $under_graduate->graduation_year;
+            $to_day = Carbon::parse(date('Y-m-d'));
+            $parse_graduationYear = Carbon::parse($graduationYear);
+            $diff = $to_day->diffInDays($parse_graduationYear, false);
+            // dd($graduationYear. ' '. $to_day);
+            // dd($diff);
+            if($diff > 380) {
+                $under_graduate->is_under_graduate = 1;
+                $under_graduate->is_this_year_gc = 0;
+                $under_graduate->update();
+            }
+        }
     }
 }
