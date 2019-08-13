@@ -18,6 +18,7 @@ use App\SentMessage;
 use App\Fellowship;
 use App\RegistrationKey;
 use Monolog\Logger;
+use Carbon\Carbon;
 
 class ParseRegistrationMessage extends Controller
 {
@@ -55,7 +56,9 @@ class ParseRegistrationMessage extends Controller
 
             if($registration_key) {
                 // $registration_key = json_decode($registration_key);
+                $registration_key = json_decode($registration_key);
                 $type = $registration_key->type;
+                $for_contact_update = $registration_key->for_contact_update;
                 if($type == 'event_registration') {
                     $event = Event::where([['event_name', '=', $registration_key->event], ['fellowship_id', '=', $fellowship_id]])->first();
                     if($event instanceof Event) {
@@ -64,15 +67,11 @@ class ParseRegistrationMessage extends Controller
                         $contact = Contact::where([['phone', '=', $sent_from], ['fellowship_id', '=', $fellowship_id]])->first();
                         
                         if($contact != null) {
-                            $logger->log(Logger::INFO, "contact is null", [$contact]);
-                            return response()->json(['contact is null', $contact], 200);
-                            $is_registered = ContactEvent::where([['event_id', '=', $event_id],['contact_id', '=', $contact->id]])->first();
+                            $is_registered = ContactEvent::where([['event_id', '=', $event->id],['contact_id', '=', $contact->id]])->first();
                             if($is_registered) {
                                 $logger->log(Logger::INFO, "contact already registered for the event", [$event->event_name]);
                                 return response()->json(['message' => 'contact already registered'], 400);
                             }
-                            
-                            $logger->log(Logger::INFO, "registration_key", [print_r(expression)]);
                             $contact_event->event_id = $event->id;
                             $contact_event->contact_id = $contact->id;
                             $contact_event->save();
@@ -117,7 +116,7 @@ class ParseRegistrationMessage extends Controller
                                             $sent_message->is_sent = true;
                                             $sent_message->is_delivered = true;
                                             $sent_message->update();
-                                            $logger->log(Logger::INFO, "success message sent successfully for event registration", []);
+                                            $logger->log(Logger::INFO, "success message sent successfully for event registration", [$decoded_response]);
                                             return response()->json(['message' => 'success message reply sent successfully for registered member',
                                             'sent message' => $send_message], 200);
                                         }
@@ -145,6 +144,10 @@ class ParseRegistrationMessage extends Controller
                             $new_contact->fellowship_id = 2;
                             $new_contact->created_by = $user->full_name;
                             $new_contact->save();
+
+                            $contact_event->event_id = $event->id;
+                            $contact_event->contact_id = $new_contact->id;
+                            $contact_event->save();
 
                             $notification->notification = $new_contact->phone.' registered for '. $event->event_name.' event through sms, update contact by sending him contact registration form';
                             $notification->fellowship_id = $fellowship_id;
@@ -200,29 +203,29 @@ class ParseRegistrationMessage extends Controller
                         }
                     }
                     
-                } else if($registration_key->type == 'contact_update') {
-                    $logger->log(Logger::INFO, "The formate is not valid to register: ", [count($split_message)]);
-                    return response()->json(['The formate is not valid to register'], 400);
-                    if(count($split_message) < 4) {
+                } else if($for_contact_update == 1) {
+                    
+                    if(count($split_message) < 3) {
                         $logger->log(Logger::INFO, "The formate is not valid to register: ", [count($split_message)]);
                     return response()->json(['The formate is not valid to register'], 400);
                     }
-                    $logger->log(Logger::INFO, "graduation year is not valid, it must be numeric like ".$date('Y')+1, [$split_message[2]]);
-                    return response()->json(['The formate is not valid to register'], 400);
-                    if(is_numeric($split_message[2])) {
-                        $logger->log(Logger::INFO, "graduation year is not valid, it must be numeric like ".$date('Y')+1, [$split_message[2]]);
+                    if(!(ctype_digit(trim($split_message[2])))) {
+                        // $logger->log(Logger::INFO, "graduation year " . $split_message[2]. " is not valid, it must be numeric like ".$date('Y')+1, [$split_message[2]]);
+                        $logger->log(Logger::INFO, "graduation year is not valid the date must be ". date('Y'), [$split_message[2]]);
                     return response()->json(['The formate is not valid to register'], 400);
                     }
-                    $full_name = $split_message[1];
+                    $full_name = trim($split_message[1]);
                     $phone = $sent_from;
-                    $graduation_year = $split_message[2].'-07-30';
-
+                    $graduation_year = trim($split_message[2]).'-07-30';
+                    
                     $this_year_gc = false;
                     $is_under_graduate = true;
-
-                    $parse_graduation_year = Carbon::parse($graduationYear);
+                    
+                    $parse_graduation_year = Carbon::parse($graduation_year);
+                    
+                    // $logger->log(Logger::INFO, "contact is : ", [$full_name, $parse_graduation_year]);
+                    // return response()->json(['The formate is not valid to register'], 200);
                     $today = Carbon::parse(date('Y-m-d'));
-
                     $difference = $today->diffInDays($parse_graduation_year, false);
                     if($difference <= 0) {
                         $is_under_graduate = false;
@@ -232,6 +235,8 @@ class ParseRegistrationMessage extends Controller
                     }
 
                     $contact = Contact::where([['phone', '=', $sent_from], ['fellowship_id', '=', $fellowship_id]])->first();
+
+
                     if($contact != null) {
                         $contact->full_name = $full_name;
                         $contact->gender = $contact->gender;
@@ -240,7 +245,7 @@ class ParseRegistrationMessage extends Controller
                         $contact->acadamic_department = $contact->acadamic_department;
                         $contact->graduation_year = $graduation_year;
                         $contact->is_under_graduate = $is_under_graduate;
-                        $contact->is_this_year_gc = $is_this_year_gc;
+                        $contact->is_this_year_gc = $this_year_gc;
                         $contact->fellowship_id = $fellowship_id;
                         if($contact->update()) {
 
@@ -258,7 +263,7 @@ class ParseRegistrationMessage extends Controller
                                 $sent_message->sent_by = $registration_key->created_by;
 
                                 if($sent_message->save()) {
-                    
+
                                     $get_campaign_id = $get_sms->negarit_campaign_id;
                                     $get_message = $sent_message->message;
                                     $get_phone = $sent_from;
@@ -281,7 +286,7 @@ class ParseRegistrationMessage extends Controller
                                             $sent_message->is_sent = true;
                                             $sent_message->is_delivered = true;
                                             $sent_message->update();
-                                            $logger->log(Logger::INFO, "unknown contact updated successfully", []);
+                                            $logger->log(Logger::INFO, "contact updated successfully", []);
                                             return response()->json(['message' => 'message sent successfully',
                                             'sent message' => $send_message], 200);
                                         }
@@ -292,6 +297,8 @@ class ParseRegistrationMessage extends Controller
                             }
                         }
                     } else {
+                        $user = $registration_key->created_by;
+                        $user = json_decode($user);
                         $contact = new Contact();
                         $contact->full_name = $full_name;
                         $contact->gender = 'unknown';
@@ -300,8 +307,9 @@ class ParseRegistrationMessage extends Controller
                         $contact->Acadamic_department = 'unknown';
                         $contact->graduation_year = $graduation_year;
                         $contact->is_under_graduate = $is_under_graduate;
-                        $contact->is_this_year_gc = $is_this_year_gc;
+                        $contact->is_this_year_gc = $this_year_gc;
                         $contact->fellowship_id = $fellowship_id;
+                        $contact->created_by = $user->full_name;
                         if($contact->save()) {
                             if($registration_key->success_message_reply != null) {
                                 if(!$setting) {
@@ -339,7 +347,7 @@ class ParseRegistrationMessage extends Controller
                                             $sent_message->is_sent = true;
                                             $sent_message->is_delivered = true;
                                             $sent_message->update();
-                                            $logger->log(Logger::INFO, "contact updated successfully", []);
+                                            $logger->log(Logger::INFO, "contact registered successfully", []);
                                             return response()->json(['message' => 'message sent successfully',
                                             'sent message' => $send_message], 200);
                                         }
@@ -354,119 +362,6 @@ class ParseRegistrationMessage extends Controller
                 }
             }
         }
-        //----------------------------------------------------------------------------------------------------------
-        /*
-        $registration_key = RegistrationKey::where([''])
-    	$split_message = explode(",", $message);
-    	$count_splited_message = count($split_message);
-
-    	if($count_splited_message < 2 || $count_splited_message > 2) {
-            exit();
-    		// return response()->json(['''user is not registered successfully'], 400);
-    	}
-    	$reg = $split_message[0];
-
-    	$reg_trim = trim($reg);
-
-        $fellowship_id = (int) $reg_trim;
-
-
-
-    	$event = $split_message[1];
-    	$event_trim = trim($event);
-    	
-
-        $fellowship = Fellowship::find($fellowship_id);
-        if(!$fellowship) {
-            $logger->log(Logger::INFO, "registration formate is not right", [$event_trim]);
-            exit();
-        }
-    	// if(strtolower($reg_trim) != "reg") {
-    	// 	$logger->log(Logger::INFO, "registration formate is not right", [$event_trim]);
-    	// 	// return response()->json(['error' => 'the format is not right'], 400);
-    	// }
-        $event = Event::where([['event_name', '=', $event_trim], ['fellowship_id', '=', $fellowship_id]])->first();
-        if(!$event) {
-            exit();
-        }
-
-    	
-    	// $logger->log(Logger::INFO, "NEGARIT_LOG", [$event_trim]);
-        // $lastMessage = SentMessage::latest()->first();
-        // $contact = Contact::where('fellowship_id', '=', $user->fellowship_id)->latest()->first();
-        $lastMessage = SentMessage::where('fellowship_id', '=', $fellowship_id)->latest()->first();
-        $user = $lastMessage->sent_by;
-        $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $fellowship_id]])->first();
-        $sms_port = SmsPort::where('fellowship_id', '=', $fellowship_id)->latest()->first();
-        $sms_port_id = $sms_port->id;
-
-        $notification = new Notification();
-    	$event_id = $event->id;
-    	$contact_event = new ContactEvent();
-
-        $contact = Contact::where([['phone', '=', $sent_from], ['fellowship_id', '=', $fellowship_id]])->first();
-        if($contact instanceof Contact) {
-            $is_registered = ContactEvent::where([['event_id', '=', $event_id],['contact_id', '=', $contact->id]])->first();
-            if($is_registered) {
-                $logger->log(Logger::INFO, "contact already registered for the event", [$event_trim]);
-                return response()->json(['message' => 'contact already registered'], 400);
-            }
-            $contact_event->event_id = $event_id;
-            $contact_event->contact_id = $contact->id;
-            if($contact_event->save()) {
-                $notification->notification = $contact->full_name.' registered for '. $event_trim.' through sms';
-                $notification->save();
-                // $logger->log(Logger::INFO, "user registed successfully", [$event_trim]);
-                // return response()->json(['message' => 'user registered for '.$event_trim . ' event successfully'], 200);
-                if(!$setting) {
-                    return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
-                }
-                
-                $sent_message = new SentMessage();
-                $sent_message->message = "successfully registered for ".$event_trim;
-                $sent_message->sent_to = $contact->phone;
-                $sent_message->is_sent = false;
-                $sent_message->is_delivered = false;
-                $sent_message->sms_port_id = $sms_port_id;
-                $sent_message->fellowship_id = $user->fellowship_id;
-                $sent_message->sent_by = $user;
-                if($sent_message->save()) {
-                    
-                    $get_campaign_id = $sms_port->negarit_campaign_id;
-                    $get_api_key = $sms_port->negarit_sms_port_id;
-                    $get_message = $sent_message->message;
-                    $get_phone = $sent_message->sent_to;
-                    $get_sender = $sent_message->sent_by;
-
-                    // to send a post request (message) for Negarit API 
-                    $message_send_request = array();
-                    $message_send_request['API_KEY'] = $setting->value;
-                    $message_send_request['message'] = $get_message;
-                    $message_send_request['sent_to'] = $get_phone;
-                    $message_send_request['campaign_id'] = $get_campaign_id;
-                    
-                    $negarit_response = $this->sendPostRequest($this->negarit_api_url, 
-                            'api_request/sent_message?API_KEY?='.$setting->value, 
-                            json_encode($message_send_request));
-                    $decoded_response = json_decode($negarit_response);
-                    if($decoded_response) { 
-                        if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
-                            $send_message = $decoded_response->sent_message;
-                            $sent_message->is_sent = true;
-                            $sent_message->is_delivered = true;
-                            $sent_message->update();
-                            return response()->json(['message' => 'message sent successfully',
-                            'sent message' => $send_message], 200);
-                        }
-                        return response()->json(['response' => $decoded_response], 500);
-                    }
-                    return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
-                }
-            }
-        }
-        $logger->log(Logger::INFO, "only fellowship members can register for events", []);
-        return response()->json(['error' => 'contact is not the member of fellowship', 'message' => 'only fellowship members can register for events'], 404);
-        */
     }
     public function getRegisteredMembers() {
 
