@@ -20,7 +20,7 @@ class CreateRegistrationKeysTable extends Migration
             $table->string('event')->nullable();
             $table->boolean('for_contact_update')->default(false);
             $table->string('success_message_reply')->nullabe();
-            $table->string('failed_message_reply')->nullable();
+            // $table->string('failed_message_reply')->nullable();
             $table->date('registration_end_date');
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');

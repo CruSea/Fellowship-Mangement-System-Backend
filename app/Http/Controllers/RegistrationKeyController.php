@@ -16,13 +16,12 @@ class RegistrationKeyController extends Controller
 		try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			$request = request()->only('registration_key', 'type', 'event', 'success_message_reply', 'failed_message_reply', 'registration_end_date');
+    			$request = request()->only('registration_key', 'type', 'event', 'success_message_reply', 'registration_end_date');
     			$rule = [
     				'registration_key' => 'required|string|min:1',
     				'type' => 'required|string|min:1',
     				'event' => 'string|min:1|nullable',
     				'success_message_reply' => 'string|min:1|nullable',
-    				'failed_message_reply' => 'string|min:1|nullable',
     				'registration_end_date' => 'required|date_format:Y-m-d|after:tomorrow'
     			];
     			$validator = Validator::make($request, $rule);
@@ -58,7 +57,6 @@ class RegistrationKeyController extends Controller
     			$registration_key->event = $event_name;
     			$registration_key->for_contact_update = $for_contact_update;
     			$registration_key->success_message_reply = $request['success_message_reply'];
-    			$registration_key->failed_message_reply = $request['failed_message_reply'];
     			$registration_key->registration_end_date = $request['registration_end_date'];
     			$registration_key->fellowship_id = $user->fellowship_id;
     			$registration_key->created_by = $user;
@@ -119,12 +117,11 @@ class RegistrationKeyController extends Controller
 			if($user instanceof User) {
 				$registration_key = RegistrationKey::find($id);
 				if($registration_key instanceof RegistrationKey && $registration_key->fellowship_id == $user->fellowship_id) {
-					$request = request()->only('registration_key', 'event', 'success_message_reply', 'failed_message_reply', 'registration_end_date');
+					$request = request()->only('registration_key', 'event', 'success_message_reply', 'registration_end_date');
 	    			$rule = [
 	    				'registration_key' => 'required|string|min:1',
 	    				'event' => 'string|min:1|nullable',
 	    				'success_message_reply' => 'string|min:1|nullable',
-	    				'failed_message_reply' => 'string|min:1|nullable',
 	    				'registration_end_date' => 'required|date_format:Y-m-d|after:tomorrow'
 	    			];
 	    			$validator = Validator::make($request, $rule);
@@ -155,7 +152,6 @@ class RegistrationKeyController extends Controller
 	    			$registration_key->registration_key = $request['registration_key'];
 	    			$registration_key->event = $event_name;
 	    			$registration_key->success_message_reply = $request['success_message_reply'];
-	    			$registration_key->failed_message_reply = $request['failed_message_reply'];
 	    			$registration_key->registration_end_date = $request['registration_end_date'];
 	    			$registration_key->fellowship_id = $user->fellowship_id;
 	    			$registration_key->created_by = $user;

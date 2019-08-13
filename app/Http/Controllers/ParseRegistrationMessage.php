@@ -206,13 +206,94 @@ class ParseRegistrationMessage extends Controller
                 } else if($for_contact_update == 1) {
                     
                     if(count($split_message) < 3) {
-                        $logger->log(Logger::INFO, "The formate is not valid to register: ", [count($split_message)]);
-                    return response()->json(['The formate is not valid to register'], 400);
+                        if(!$setting) {
+                            return response()->json(['error' => 'API key is not found, to send a success message for registered message'], 404);
+                        }
+                        $sent_message = new SentMessage();
+                        $sent_message->message = 'Invalid request! full name and graduation year must be provided by separation with comma';
+                        $sent_message->sent_to = $sent_from;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $get_sms_id;
+                        $sent_message->fellowship_id = $fellowship_id;
+                        $sent_message->sent_by = $registration_key->created_by;
+                        if($sent_message->save()) {
+                            $get_campaign_id = $get_sms->negarit_campaign_id;
+                            $get_message = $sent_message->message;
+                            $get_phone = $sent_from;
+                            $get_sender = $sent_message->sent_by;
+
+                            // to send a post request (message) for Negarit API 
+                            $message_send_request = array();
+                            $message_send_request['API_KEY'] = $setting->value;
+                            $message_send_request['message'] = $get_message;
+                            $message_send_request['sent_to'] = $get_phone;
+                            $message_send_request['campaign_id'] = $get_campaign_id;
+
+                            $negarit_response = $this->sendPostRequest($this->negarit_api_url, 
+                                    'api_request/sent_message?API_KEY?='.$setting->value, 
+                                    json_encode($message_send_request));
+                            $decoded_response = json_decode($negarit_response);
+                            if($decoded_response) { 
+                                if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
+                                    $send_message = $decoded_response->sent_message;
+                                    $sent_message->is_sent = true;
+                                    $sent_message->is_delivered = true;
+                                    $sent_message->update();
+                                    $logger->log(Logger::INFO, "contact updated successfully", []);
+                                    return response()->json(['message' => 'message sent successfully',
+                                    'sent message' => $send_message], 200);
+                                }
+                                return response()->json(['response' => $decoded_response], 500);
+                            }
+                            return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
+                        }
                     }
-                    if(!(ctype_digit(trim($split_message[2])))) {
-                        // $logger->log(Logger::INFO, "graduation year " . $split_message[2]. " is not valid, it must be numeric like ".$date('Y')+1, [$split_message[2]]);
-                        $logger->log(Logger::INFO, "graduation year is not valid the date must be ". date('Y'), [$split_message[2]]);
-                    return response()->json(['The formate is not valid to register'], 400);
+                    $gra_year = trim($split_message[2]);
+                    if(!(ctype_digit(trim($split_message[2]))) || strlen($gra_year) < 4 || strlen($gra_year) > 4) {
+                        if(!$setting) {
+                            return response()->json(['error' => 'API key is not found, to send a success message for registered message'], 404);
+                        }
+                        $next_year = date('Y') + 1;
+                        $sent_message = new SentMessage();
+                        $sent_message->message = 'Invalid request! graduation year '. $gra_year. ' is not valid, it should be like '. $next_year;
+                        $sent_message->sent_to = $sent_from;
+                        $sent_message->is_sent = false;
+                        $sent_message->is_delivered = false;
+                        $sent_message->sms_port_id = $get_sms_id;
+                        $sent_message->fellowship_id = $fellowship_id;
+                        $sent_message->sent_by = $registration_key->created_by;
+                        if($sent_message->save()) {
+                            $get_campaign_id = $get_sms->negarit_campaign_id;
+                            $get_message = $sent_message->message;
+                            $get_phone = $sent_from;
+                            $get_sender = $sent_message->sent_by;
+
+                            // to send a post request (message) for Negarit API 
+                            $message_send_request = array();
+                            $message_send_request['API_KEY'] = $setting->value;
+                            $message_send_request['message'] = $get_message;
+                            $message_send_request['sent_to'] = $get_phone;
+                            $message_send_request['campaign_id'] = $get_campaign_id;
+
+                            $negarit_response = $this->sendPostRequest($this->negarit_api_url, 
+                                    'api_request/sent_message?API_KEY?='.$setting->value, 
+                                    json_encode($message_send_request));
+                            $decoded_response = json_decode($negarit_response);
+                            if($decoded_response) { 
+                                if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
+                                    $send_message = $decoded_response->sent_message;
+                                    $sent_message->is_sent = true;
+                                    $sent_message->is_delivered = true;
+                                    $sent_message->update();
+                                    $logger->log(Logger::INFO, "contact updated successfully", []);
+                                    return response()->json(['message' => 'message sent successfully',
+                                    'sent message' => $send_message], 200);
+                                }
+                                return response()->json(['response' => $decoded_response], 500);
+                            }
+                            return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
+                        }
                     }
                     $full_name = trim($split_message[1]);
                     $phone = $sent_from;
@@ -223,8 +304,6 @@ class ParseRegistrationMessage extends Controller
                     
                     $parse_graduation_year = Carbon::parse($graduation_year);
                     
-                    // $logger->log(Logger::INFO, "contact is : ", [$full_name, $parse_graduation_year]);
-                    // return response()->json(['The formate is not valid to register'], 200);
                     $today = Carbon::parse(date('Y-m-d'));
                     $difference = $today->diffInDays($parse_graduation_year, false);
                     if($difference <= 0) {
