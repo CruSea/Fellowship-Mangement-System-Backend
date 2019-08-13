@@ -43,7 +43,7 @@ class ContactController extends Controller
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 500);
+                return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 400);
             }
             $phone_number  = $request['phone'];
             $contact0 = Str::startsWith($request['phone'], '0');

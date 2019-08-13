@@ -55,10 +55,10 @@ class SendScheduledMessages extends Command
     public function handle()
     {
         // dd(date('H:i'));
-        $setting = Setting::where('name', '=', 'API_KEY')->first();
-        if(!$setting) {
-            return response()->json(['error' => 'API KEY is not found, please add API KEY frist'], 404);
-        }
+        // $setting = Setting::where('name', '=', 'API_KEY')->first();
+        // if(!$setting) {
+        //     return response()->json(['error' => 'API KEY is not found, please add API KEY frist'], 404);
+        // }
         
         $daily_scheduled_message = ScheduleMessage::where('type', '=', 'daily')->get();
         $count_daily_message = count($daily_scheduled_message);
@@ -71,12 +71,18 @@ class SendScheduledMessages extends Command
                 if(!$sms_port) {
                     return response()->json(['error' => 'sms port is not found'], 404);
                 }
+                $api_key = $sms_port->api_key;
+                $fellowship_id = $sms_port->fellowship_id;
+                // check stting existance
+                $setting = Setting::where([['value', '=', $api_key], ['fellowship_id', '=', $fellowship_id]])->first();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
                 if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($daily->end_date, false) >= 0) {
                     $DiffInDate = Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($daily->start_date));
                     if(($DiffInDate) % 1 == 0 && $DiffInDate >= 0) {
                         if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($daily->sent_time))) == 0) {
                             if($daily->sent_to != null) {
-                                // dd('sent to working '. $daily->sent_to);
                                 $contains_name = Str::contains($daily->message, '{name}');
                                 $replaceName = $daily->message;
                                 $contact = Contact::where([['phone', '=', $daily->sent_to], ['fellowship_id', '=', $daily->get_fellowship_id]])->first();
@@ -94,18 +100,13 @@ class SendScheduledMessages extends Command
                                         'api_request/sent_message?API_KEY?='.$setting->value, 
                                         json_encode($message_send_request));
                                 $decoded_response = json_decode($negarit_response);
-                                dd('message sent to contact successfullyffffffffff');
-                                if($decoded_response) { 
-                                    dd('message sent to contact successfullywwwwwwww');
+                                if($decoded_response) {
                                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
-                                        dd('message sent to contact successfully');
                                         $send_message = $decoded_response->sent_message;
-
                                     }
                                 }
                             }
                             if($daily->team_id != null) {
-                                // dd('team works '. $daily->team_id);
                                 $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
                                 $daily->team_id)->select('contact_id')->get())->get();
                                 $team = Team::find($daily->team_id);
@@ -134,7 +135,6 @@ class SendScheduledMessages extends Command
                                 $negarit_response = \App\Http\Controllers\Controller::sendPostRequest($this->negarit_api_url, 
                                 'api_request/sent_multiple_messages', 
                                 json_encode($negarit_message_request));
-                                // dd('message sent to the team successfully five');
                                 $decoded_response = json_decode($negarit_response);
 
                                 if($decoded_response) { 
@@ -174,6 +174,7 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
 
                                 if($decoded_response) { 
+
                                     if(isset($decoded_response->status)) {
                                     }
                                 }
@@ -209,7 +210,6 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
                                     if(isset($decoded_response->status)) {
-                                        dd('message sent to event');
                                     }
                                 }
                             }
@@ -231,7 +231,6 @@ class SendScheduledMessages extends Command
         if($count == 0) {
             // 
         } else {
-            // dd(date('H:i'));
             for($i = 0; $i < count($weekly_scheduled_message); $i++) {
                 $weekly = $weekly_scheduled_message[$i];
                 $team_id = $weekly->team_id;
@@ -239,10 +238,18 @@ class SendScheduledMessages extends Command
                 if(!$sms_port) {
                     return response()->json(['error' => 'sms port is not found'], 404);
                 }
+                $api_key = $sms_port->api_key;
+                $fellowship_id = $sms_port->fellowship_id;
+                // check stting existance
+                $setting = Setting::where([['value', '=', $api_key], ['fellowship_id', '=', $fellowship_id]])->first();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
                 if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($weekly->end_date, false) >= 0) {
                     $DiffInDate = Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($weekly->start_date));
                     if(($DiffInDate) % 7 == 0 && $DiffInDate >= 0) {
                         if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($weekly->sent_time))) == 0) {
+
                             if($weekly->sent_to != null) {
                                 $contains_name = Str::contains($weekly->message, '{name}');
                                 $replaceName = $weekly->message;
@@ -334,11 +341,14 @@ class SendScheduledMessages extends Command
                                 json_encode($negarit_message_request));
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
+                                    
                                     if(isset($decoded_response->status)) {
                                     }
                                 }
                             }
+
                             if($weekly->event_id != null) {
+
                                 $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $weekly->event_id)->select('contact_id')->get())->get();
                                 $event = Event::find($weekly->event_id);
                                 if(count($contacts) == 0) {
@@ -367,6 +377,7 @@ class SendScheduledMessages extends Command
                                 json_encode($negarit_message_request));
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
+
                                     if(isset($decoded_response->status)) {
                                     }
                                 }
@@ -379,7 +390,7 @@ class SendScheduledMessages extends Command
                         $notification = new Notification();
                         $notification->notification = "weekly scheduled '".$weekly->message. "' message has expired. end date was ". $weekly->end_date;
                         $notification->save();
-                    } else {dd(date('H:i'));}
+                    } else {}
                 } 
             }
         }
@@ -396,7 +407,15 @@ class SendScheduledMessages extends Command
                 if(!$sms_port) {
                     return response()->json(['error' => 'sms port is not found'], 404);
                 }
+                $api_key = $sms_port->api_key;
+                $fellowship_id = $sms_port->fellowship_id;
+                // check stting existance
+                $setting = Setting::where([['value', '=', $api_key], ['fellowship_id', '=', $fellowship_id]])->first();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
                 if((Carbon::parse((Carbon::parse(date('Y-m-d')))))->diffInDays($monthly->end_date, false) >= 0) {
+
                     if((Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($monthly->start_date))) % 28 == 0) {
                         if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($monthly->sent_time))) == 0) {
                             if($monthly->sent_to != null) {

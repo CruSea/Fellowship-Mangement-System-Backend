@@ -12,6 +12,9 @@ use App\Contact;
 use App\Team;
 use App\Event;
 use App\SmsPort;
+use App\Setting;
+use App\ContactTeam;
+use App\contactEvent;
 use Carbon\Carbon;
 use JWTAuth;
 use Input;
@@ -49,12 +52,21 @@ class ScheduledMessageController extends Controller
     			}
     			$team_id = $team->id;
     			$sms_port_id = $sms_port->id;
-    	// 		$key = str_random(60);
-    	// 		// check key existance before, key must be unique
-    	// 		$key_exist = ScheduleMessage::where('key', '=', $key)->first();
-    	// 		if($key_exist) {
-					// $key = str_random(60);
-    	// 		}
+
+                $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
+                $team_id)->select('contact_id')->get())->get();
+
+                if(count($contacts) == 0) {
+                    return response()->json(['message' => 'member is not found in '.$team->name. ' team'], 404);
+                }
+
+                $api_key = $sms_port->api_key;
+                // check stting existance
+                $setting = Setting::where([['name', '=', 'API_KEY'],['value', '=', $api_key], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
+
     			$shceduled_message = new ScheduleMessage();
     			$shceduled_message->type = $request['type'];
     			$shceduled_message->start_date = $request['start_date'];
@@ -100,12 +112,26 @@ class ScheduledMessageController extends Controller
     			if(!$sms_port) {
     				return  response()->json(['error' => 'sms port is not found'], 404);
     			}
+
     			if(Carbon::parse($request['start_date'])->diffInDays(Carbon::parse($request['end_date']), false) < 0) {
     				return response()->json(['error' => "end date can't be sooner than start date"], 400);
     			}
     			$sms_port_id = $sms_port->id;
     			$fellowship_id = $user->fellowship_id;
     			$fellowship = Fellowship::find($fellowship_id);
+
+                $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
+
+                if(count($contacts) == 0) {
+                    return response()->json(['message' => 'member is not found in '. $fellowship->university_name. ' fellowship'], 404);
+                }
+
+                $api_key = $sms_port->api_key;
+                // check stting existance
+                $setting = Setting::where([['name', '=', 'API_KEY'],['value', '=', $api_key], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
 
     			$shceduled_message = new ScheduleMessage();
     			$shceduled_message->type = $request['type'];
@@ -162,6 +188,19 @@ class ScheduledMessageController extends Controller
     			$event_id = $event->id;
     			$sms_port_id = $sms_port->id;
 
+                $contacts = Contact::whereIn('id', contactEvent::where('event_id','=', 
+                $event_id)->select('contact_id')->get())->get();
+
+                if(count($contacts) == 0) {
+                    return response()->json(['message' => 'member is not found in '.$event->event_name. ' team'], 404);
+                }
+                $api_key = $sms_port->api_key;
+                // check stting existance
+                $setting = Setting::where([['name', '=', 'API_KEY'],['value', '=', $api_key], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
+
     			$shceduled_message = new ScheduleMessage();
     			$shceduled_message->type = $request['type'];
     			$shceduled_message->start_date = $request['start_date'];
@@ -210,6 +249,14 @@ class ScheduledMessageController extends Controller
     			if(!$sms_port) {
     				return  response()->json(['error' => 'sms port is not found'], 404);
     			}
+
+                $api_key = $sms_port->api_key;
+                // check stting existance
+                $setting = Setting::where([['name', '=', 'API_KEY'],['value', '=', $api_key], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
+
     			$phone_number  = $request['sent_to'];
 	            $contact0 = Str::startsWith($request['sent_to'], '0');
 	            $contact9 = Str::startsWith($request['sent_to'], '9');

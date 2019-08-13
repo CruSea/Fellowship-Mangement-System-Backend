@@ -62,7 +62,7 @@ class MessageController extends Controller
                 return response()->json(['message' => 'error found', 'error' => 'sms port is not found'], 404);
             }
             // get api key from setting table
-            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$setting) {
                 return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
             }
@@ -148,6 +148,9 @@ class MessageController extends Controller
                         return response()->json(['message' => 'message sent successfully',
                         'sent message' => $send_message], 200);
                     }
+                    $sentMessage->is_sent = true;
+                    $sentMessage->is_delivered = true;
+                    $sentMessage->update();
                     return response()->json(['response' => $decoded_response], 500);
                 }
                 return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
@@ -261,7 +264,7 @@ class MessageController extends Controller
 
             // get phones that recieve the message and not recieve the message
             // $get_successfull_sent_phones = array();
-            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$setting) {
                 return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
             }
@@ -346,6 +349,9 @@ class MessageController extends Controller
                     return response()->json(['response' => $decoded_response], 200);
                 }
                 else {
+                    $sent_message->is_sent = true;
+                    $sent_message->is_delivered = true;
+                    $sent_message->update();
                     return response()->json(['response' => $decoded_response], 500);
                 }
             } else {
@@ -396,7 +402,7 @@ class MessageController extends Controller
 
             // get phones that recieve the message and not recieve the message
             // $get_successfull_sent_phones = array();
-            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$setting) {
                 return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
             }
@@ -481,6 +487,9 @@ class MessageController extends Controller
                     return response()->json(['response' => $decoded_response], 200);
                 }
                 else {
+                    $sent_message->is_sent = true;
+                    $sent_message->is_delivered = true;
+                    $sent_message->update();
                     return response()->json(['response' => $decoded_response], 500);
                 }
             } else {
@@ -600,7 +609,7 @@ class MessageController extends Controller
                     return response()->json(['message' => 'member is not found in '. $fellowship->university_name. ' fellowship'], 404);
                 }
 
-                $setting = Setting::where('name', '=', 'API_KEY')->first();
+                $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$setting) {
                     return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
                 }
@@ -688,6 +697,9 @@ class MessageController extends Controller
                         return response()->json(['response' => $decoded_response], 200);
                     }
                     else {
+                        $sent_message->is_sent = true;
+                        $sent_message->is_delivered = true;
+                        $sent_message->update();
                         return response()->json(['response' => $decoded_response], 500);
                     }
                 } else {
@@ -734,7 +746,7 @@ class MessageController extends Controller
                 $fellowship_message->save();
                 $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
 
-                $setting = Setting::where('name', '=', 'API_KEY')->first();
+                $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$setting) {
                     return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
                 }
@@ -774,14 +786,7 @@ class MessageController extends Controller
                         $contact = $contacts[$i];
 
                         if(!$contact->is_under_graduate) {
-                            // $sent_message = new SentMessage([
-                            //     'message' => $request['message'],
-                            //     'sent_to' => $contact->full_name,
-                            //     'is_sent' => false,
-                            //     'is_delivered' => false,
-                            //     'sms_port_id' => $getSmsPortId,
-                            //     'sent_by' => $user,
-                            // ]);
+                            
                             $sent_message = new SentMessage();
                             $sent_message->message = $request['message'];
                             $sent_message->sent_to = $contact->full_name;
@@ -791,14 +796,7 @@ class MessageController extends Controller
                             $sent_message->fellowship_id = $user->fellowship_id;
                             $sent_message->sent_by = $user;
                             if(!$sent_message->save()) {
-                                // $sent_message = new SentMessage([
-                                //     'message' => $request['message'],
-                                //     'sent_to' => $contact->full_name,
-                                //     'is_sent' => false,
-                                //     'is_delivered' => false,
-                                //     'sms_port_id' => $getSmsPortId,
-                                //     'sent_by' => $user,
-                                // ]);
+
                                 $sent_message = new SentMessage();
                                 $sent_message->message = $request['message'];
                                 $sent_message->sent_to = $contact->full_name;
@@ -835,6 +833,9 @@ class MessageController extends Controller
                         return response()->json(['response' => $decoded_response], 200);
                     }
                     else {
+                        $sent_message->is_sent = true;
+                        $sent_message->is_delivered = true;
+                        $sent_message->update();
                         return response()->json(['response' => $decoded_response], 500);
                     }
                 } else {
@@ -924,7 +925,7 @@ class MessageController extends Controller
                 $contacts = Contact::whereIn('id', ContactEvent::where('event_id','=', 
                     $event_id)->select('contact_id')->get())->get();
 
-                $setting = Setting::where('name', '=', 'API_KEY')->first();
+                $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
                 if(!$setting) {
                     return response()->json(['message' => '404 error found', 'error' => 'Api Key is not found'], 404);
                 }
@@ -1005,6 +1006,9 @@ class MessageController extends Controller
                         return response()->json(['response' => $decoded_response], 200);
                     }
                     else {
+                        $sent_message->is_sent = true;
+                        $sent_message->is_delivered = true;
+                        $sent_message->update();
                         return response()->json(['response' => $decoded_response], 500);
                     }
                 } else {
@@ -1045,7 +1049,7 @@ class MessageController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $setting = Setting::where('name', '=', 'API_KEY')->first();
+            $setting = Setting::where([['name', '=', 'API_KEY'], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if($setting instanceof Setting) {
                 $API_KEY = $setting->value;
                 $negarit_response = $this->sendGetRequest($this->negarit_api_url,
@@ -1098,6 +1102,9 @@ class MessageController extends Controller
                 if($search) {
                     $fellowship_message = FellowshipMessage::where([['message', 'LIKE', '%'.$search.'%'],['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->get();
                     if(count($fellowship_message) > 0) {
+                        for($i = 0; $i < count($fellowship_message); $i++) {
+                            $fellowship_message[$i]->sent_by = json_decode($fellowship_message[$i]->sent_by);
+                        }
                         return $fellowship_message;
                     }
                 }
@@ -1108,4 +1115,89 @@ class MessageController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
         }
     }
+    public function searchPostGraduateFellowshipMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+                    $fellowship_message = FellowshipMessage::where([['message', 'LIKE', '%'.$search.'%'] ,['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($fellowship_message) > 0) {
+                        for($i = 0; $i < count($fellowship_message); $i++) {
+                            $fellowship_message[$i]->sent_by = json_decode($fellowship_message[$i]->sent_by);
+                        }
+                        return $fellowship_message;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    }
+    public function searchTeamMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+                    $team_message = TeamMessage::where([['message', 'LIKE', '%'.$search.'%'] ,['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($team_message) > 0) {
+                        for($i = 0; $i < count($team_message); $i++) {
+                            $team_message[$i]->sent_by = json_decode($fellowship_message[$i]->sent_by);
+                        }
+                        return $team_message;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    }
+    public function searchPostGradauteTeamMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+                    $team_message = TeamMessage::where([['message', 'LIKE', '%'.$search.'%'] ,['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($team_message) > 0) {
+                        for($i = 0; $i < count($team_message); $i++) {
+                            $team_message[$i]->sent_by = json_decode($team_message[$i]->sent_by);
+                        }
+                        return $team_message;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    }
+    public function searchEventMessage() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $search = Input::get('search');
+                if($search) {
+                    $event_message = EventMessage::where([['message', 'LIKE', '%'.$search.'%'] ,['fellowship_id', '=', $user->fellowship_id]])->get();
+                    if(count($event_message) > 0) {
+                        for($i = 0; $i < count($event_message); $i++) {
+                            $event_message[$i]->sent_by = json_decode($event_message[$i]->sent_by);
+                        }
+                        return $event_message;
+                    }
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    }
+
 }

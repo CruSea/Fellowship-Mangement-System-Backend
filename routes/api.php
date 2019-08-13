@@ -208,42 +208,64 @@ Route::group(['prefix' => 'message'], function(){
         'uses' => "MessageController@searchContactMessage",
     ]);
 });
-Route::post('/team-message', [
-    'uses' => 'MessageController@sendTeamMessage'
-]);
+Route::group(['prefix' => 'team-message'], function() {
+    Route::post('/', [
+        'uses' => 'MessageController@sendTeamMessage'
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'MessageController@deleteTeamMessage'
+    ]);
+    Route::post('/search', [
+        'uses' => 'MessageController@searchTeamMessage',
+    ]);
+});
 Route::get('/team-messages', [
     'uses' => 'MessageController@getTeamMessage'
 ]);
-Route::delete('/team-message/{id}', [
-    'uses' => 'MessageController@deleteTeamMessage'
-]);
-Route::post('/post-graduate-team-message', [
-    'uses' => 'MessageController@sendPostGraduateTeamMessage',
-]);
-Route::get('/post-graduate-team-message', [
-    'uses' => 'MessageController@getPostGraduateTeamMessage',
-]);
-Route::post('/fellowship-message', [
-    'uses' => 'MessageController@sendFellowshipMessage',
-]);
-Route::post('/fellowship-message/search', [
-    'uses' => 'MessageController@searchFellowshipMessage',
-]);
-Route::get('/fellowship-message', [
-    'uses' => 'MessageController@getFellowshipMessage',
-]);
-Route::post('/post-graduate-fellowship-message', [
-    'uses' => 'MessageController@sendPostGraduateFellowshipMessage',
-]);
-Route::get('/post-graduate-fellowship-message', [
-    'uses' => 'MessageController@getPostGraduateFellowshipMessage',
-]);
-Route::post('/event-message', [
-    'uses' => 'MessageController@sendEventMessage',
-]);
-Route::get('/event-message', [
-    'uses' => 'MessageController@getEventMessage',
-]);
+Route::group(['prefix' => 'post-graduate-team-message'], function() {
+    Route::post('/', [
+        'uses' => 'MessageController@sendPostGraduateTeamMessage',
+    ]);
+    Route::get('/', [
+        'uses' => 'MessageController@getPostGraduateTeamMessage',
+    ]);
+    Route::post('/search', [
+        'uses' => 'MessageController@searchPostGradauteTeamMessage',
+    ]);
+});
+Route::group(['prefix' => 'fellowship-message'], function() {
+    Route::post('/', [
+        'uses' => 'MessageController@sendFellowshipMessage',
+    ]);
+    Route::post('/search', [
+        'uses' => 'MessageController@searchFellowshipMessage',
+    ]);
+    Route::get('/', [
+        'uses' => 'MessageController@getFellowshipMessage',
+    ]);
+});
+Route::group(['prefix' => 'post-graduate-fellowship-message'], function() {
+    Route::post('/', [
+        'uses' => 'MessageController@sendPostGraduateFellowshipMessage',
+    ]);
+    Route::get('/', [
+        'uses' => 'MessageController@getPostGraduateFellowshipMessage',
+    ]);
+    Route::post('/search', [
+        'uses' => 'MessageController@searchPostGraduateFellowshipMessage',
+    ]);
+});
+Route::group(['prefix' => 'event-message'], function() {
+    Route::post('/', [
+        'uses' => 'MessageController@sendEventMessage',
+    ]);
+    Route::get('/', [
+        'uses' => 'MessageController@getEventMessage',
+    ]);
+    Route::post('/search', [
+        'uses' => 'MessageController@searchEventMessage',
+    ]);
+});
 Route::get('/messages', [
     'uses' => 'MessageController@getContactsMessages',
 ]);
@@ -501,6 +523,12 @@ Route::group(['prefix' => 'send-registration-message'], function() {
         'uses' => 'EventRegistrationController@deleteEventRegistrationForm',
     ]);
 });
+Route::post('/send-registration-for-unkown-contacts', [
+    'uses' => 'EventRegistrationController@sendRegistrationForunknownContacts',
+]);
+Route::post('/send-registration-for-unkown-contact', [
+    'uses' => 'EventRegistrationController@sendRegistrationForSingleunknownContact'
+]);
 Route::post('/search-registration-messages', [
     'uses' => 'EventRegistrationController@searchEventRegistration',
 ]);
@@ -515,6 +543,23 @@ Route::get('/send-registration-messages', [
     //     // 'uses' => ''
     // ]);
 // });
+Route::group(['prefix' => 'registration-key'], function() {
+    Route::post('/', [
+        'uses' => 'RegistrationKeyController@store',
+    ]);
+    Route::get('/{id}', [
+        'uses' => 'RegistrationKeyController@show',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'RegistrationKeyController@update',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'RegistrationKeyController@delete',
+    ]);
+});
+Route::get('/registration-keys', [
+    'uses' => 'RegistrationKeyController@getRegistrationKeys',
+]);
 Route::group(['prefix' => 'parse-registration-message'], function() {
     Route::post('/', [
         'uses' => 'ParseRegistrationMessage@RegisterMembers'

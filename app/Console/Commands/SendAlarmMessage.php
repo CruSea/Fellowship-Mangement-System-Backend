@@ -51,11 +51,12 @@ class SendAlarmMessage extends Command
      */
     public function handle()
     {
+        // dd(date('Y-m-d'));
         // dd(date('H:i'));
-        $setting = Setting::where('name', '=', 'API_KEY')->first();
-        if(!$setting) {
-            return response()->json(['error' => 'API KEY is not found, please add API KEY frist'], 404);
-        }
+        // $setting = Setting::where('name', '=', 'API_KEY')->first();
+        // if(!$setting) {
+        //     return response()->json(['error' => 'API KEY is not found, please add API KEY frist'], 404);
+        // }
         $alarm_now = AlarmMessage::where('send_date', '=', date('Y-m-d'))->get();
         $count_alarm = count($alarm_now);
         for($i = 0; $i < $count_alarm; $i++) {
@@ -63,6 +64,13 @@ class SendAlarmMessage extends Command
             $sms_port = SmsPort::find($alarm->sms_port_id);
             if(!$sms_port) {
                 return response()->json(['error' => 'sms port is not found'], 404);
+            }
+            $api_key = $sms_port->api_key;
+            $fellowship_id = $sms_port->fellowship_id;
+            // check stting existance
+            $setting = Setting::where([['value', '=', $api_key], ['fellowship_id', '=', $fellowship_id]])->first();
+            if(!$setting) {
+                return response()->json(['error' => 'API_KEY is not found'], 404);
             }
             if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($alarm->send_time))) == 0) {
                 if($alarm->sent_to != null) {
@@ -83,14 +91,14 @@ class SendAlarmMessage extends Command
                             'api_request/sent_message?API_KEY?='.$setting->value, 
                             json_encode($message_send_request));
                     $decoded_response = json_decode($negarit_response);
-                    if($decoded_response) { 
+                    if($decoded_response) {
                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                         $send_message = $decoded_response->sent_message;
-                        dd('message sent successfully');
+                        dd('message sent successfully ');
                         // return response()->json(['message' => 'message sent successfully',
                         // 'sent message' => $send_message], 200);
                     }
-                    dd('message sent successfully too');
+                    dd('message sent successfully ');
                     // dd('message not sent successfully '. $decoded_response);
                     // return response()->json(['message' => "Ooops! something went wrong", 'error' => $decoded_response], 500);
                     }

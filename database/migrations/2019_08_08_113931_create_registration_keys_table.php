@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateEventRegistrationsTable extends Migration
+class CreateRegistrationKeysTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,24 +13,18 @@ class CreateEventRegistrationsTable extends Migration
      */
     public function up()
     {
-        Schema::create('event_registrations', function (Blueprint $table) {
+        Schema::create('registration_keys', function (Blueprint $table) {
             $table->increments('id');
             $table->string('registration_key');
             $table->string('type');
             $table->string('event')->nullable();
             $table->boolean('for_contact_update')->default(false);
-            $table->string('message');
-            $table->string('success_message')->nullable();
-            $table->string('failed_message')->nullable();
-            $table->integer('team_id')->unsigned()->nullable();
-            $table->foreign('team_id')->references('id')->on('teams')->onDelete('cascade');
+            $table->string('success_message_reply')->nullabe();
+            $table->string('failed_message_reply')->nullable();
+            $table->date('registration_end_date');
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
-            $table->string('phone')->nullable();
-            $table->string('sent_to');
-            $table->integer('get_fellowship_id')->unsigned()->nullable();
-            $table->foreign('get_fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
-            $table->json('sent_by');
+            $table->json('created_by');
             $table->timestamps();
         });
     }
@@ -42,6 +36,6 @@ class CreateEventRegistrationsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('event_registrations');
+        Schema::dropIfExists('registration_keys');
     }
 }
