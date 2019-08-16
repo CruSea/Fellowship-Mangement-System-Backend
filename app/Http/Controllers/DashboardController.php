@@ -8,6 +8,8 @@ use App\Contact;
 use App\Event;
 use App\Team;
 use App\TodayMessage;
+use App\SentMessage;
+use App\countMessage;
 
 use JWTAuth;
 
@@ -107,6 +109,47 @@ class DashboardController extends Controller
                     return response()->json(['message'=> 'no message will be sent today'], 404);
                 }
                 return response()->json(['today_messages' => $today_messages], 200);
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'somthing went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    }
+    public function numberOfTodaySentMessages() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $today_sent_message = countMessage::where([['fellowship_id', '=', $user->fellowship_id], ['type', '=', 'today']])->first();
+                $count_message = $today_sent_message->count;
+                return response()->json(['count' => $count_message], 200);
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'somthing went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    }
+    public function numberOflastMonthSentMessages() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $today_sent_message = countMessage::where([['fellowship_id', '=', $user->fellowship_id], ['type', '=', 'monthly']])->first();
+                $count_message = $today_sent_message->count;
+                return response()->json(['count' => $count_message], 200);
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'somthing went wrong', 'error' => $ex->getMessage()], $ex->getStatusCode());
+        }
+    } 
+    public function numberOfAllMessages() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $total_successfully_sent_message = SentMessage::where([['fellowship_id', '=', $user->fellowship_id], ['is_sent', '=', true]])->count();
+                return response()->json(['count' => $total_successfully_sent_message], 200);
             } else {
                 return response()->json(['error' => 'token expired'], 401);
             }

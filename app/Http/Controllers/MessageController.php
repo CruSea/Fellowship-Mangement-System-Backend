@@ -186,7 +186,7 @@ class MessageController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             // $contactMessage = SentMessage::paginate(10);
-            $contactMessage = SentMessage::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+            $contactMessage = SentMessage::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
             $countMessages = $contactMessage->count();
             if($countMessages == 0) {
                 return response()->json(['message is not available'], 404);
@@ -504,7 +504,7 @@ class MessageController extends Controller
         try {
             $user = JWtAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $team_message = TeamMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
+                $team_message = TeamMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
                 // $team_message = Team::whereIn('id', TeamMessage::where(''))
                 // $team_message = Team::
                 $count_team_message = count($team_message);
@@ -531,7 +531,7 @@ class MessageController extends Controller
         try {
             $user = JWtAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $team_message = TeamMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
+                $team_message = TeamMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
                 $count_team_message = count($team_message);
                 if($count_team_message == 0) {
                     return response()->json(['message' => 'empty team message', 'team message' => []], 404);
@@ -852,7 +852,7 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
+                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
                 $count_message = count($fellowship_message);
                 if($count_message == 0) {
                     return response()->json(['message' => 'empty fellowship message'], 404);
@@ -873,7 +873,7 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
+                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
                 $count_message = count($fellowship_message);
                 if($count_message == 0) {
                     return response()->json(['message' => 'empty fellowship message'], 404);
@@ -1025,7 +1025,7 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $event_message = EventMessage::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+                $event_message = EventMessage::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
                 $count_message = $event_message->count();
                 if($count_message == 0) {
                     return response()->json(['response' => 'empty event message'], 404);

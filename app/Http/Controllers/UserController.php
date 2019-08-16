@@ -89,6 +89,7 @@ class UserController extends Controller
                 if($user->save()) {
                     $user->roles()->attach($role);
                     $notification->notification = $authUser->full_name.' added '.$user->full_name.' as '. $role->name.' for '. $fellowship->university_name;
+                    $notification->fellowship_id = $authUser->fellowship_id;
                     $notification->save();
                     return response()->json(['message' => 'user registered successfully'], 201);
                 }

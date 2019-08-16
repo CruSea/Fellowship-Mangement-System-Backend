@@ -34,7 +34,7 @@ class NotificationController extends Controller
     			if($count == 0) {
     				return response()->json(['notification' => 0], 404);
     			} 
-    			$notifications = Notification::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+    			$notifications = Notification::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(1000);
     			return response()->json(['notifications' => $notifications, 'count' => $count], 200);
     		} else {
     			return response()->json(['error' => 'token expired'], 401);

@@ -19,7 +19,8 @@ class Kernel extends ConsoleKernel
         'App\Console\commands\UpdateContactToPostGraduate',
         'App\Console\commands\SendScheduledMessages',
         'App\Console\commands\SendAlarmMessage',
-        'App\Console\commands\countMessage',
+        'App\Console\commands\countMessages',
+        'App\Console\commands\countMonthlySentMessage',
         'App\Console\commands\DashboardCommand',
     ];
 
@@ -41,6 +42,10 @@ class Kernel extends ConsoleKernel
                 ->everyMinute();
         $schedule->command('command:dashboardCommand')
                 ->hourly();
+        $schedule->command('command:countMessage')
+                ->daily();
+        $schedule->command('command:countMonthlySentMessage')
+                ->monthlyOn(28, '00:00');
         // $schedule->call(function () {
         //     DB::table('contacts')->whereDate('graduation_year', '<', date('Y-m-d'))->delete();
             // DB::table('post_graduates_contact')->whereDate('graduation_year', '<', date('Y-m-d'))->

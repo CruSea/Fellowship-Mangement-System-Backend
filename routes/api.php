@@ -111,6 +111,15 @@ Route::get('/events_list', [
 Route::get('/today_messages', [
     'uses' => 'DashboardController@notifyTodayMessges',
 ]);
+Route::get('/today_messages', [
+    'uses' => 'DashboardController@numberOfTodaySentMessages',
+]);
+Route::get('/last_month_messages', [
+    'uses' => 'DashboardController@numberOflastMonthSentMessages',
+]);
+Route::get('/total_messages', [
+    'uses' => 'DashboardController@numberOfAllMessages',
+]);
 
 // Route::post('/importUsers', [
 //     'uses' => 'UserController@importExcel'
