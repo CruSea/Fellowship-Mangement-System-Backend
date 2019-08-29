@@ -29,6 +29,7 @@ class UserController extends Controller
         $this->middleware('ability:,edit-user-role', ['only' => ['updateUserRole']]);
         $this->middleware('ability:,get-user', ['only' => ['getUserRole', 'getUsers']]);
         $this->middleware('ability:,get-me', ['only' => ['getMe']]);
+        $this->middleware('ability:,get-all-user', ['only' => ['getAllUsers']]);
     }
     protected function store(Request $request) {
         try {
@@ -81,7 +82,9 @@ class UserController extends Controller
                 $user = new User();
                 $user->full_name = $request->input('full_name');
                 $user->phone = $phone_number;
+                $user->status = true;
                 $user->email = $request->input('email');
+                $user->created_by = $authUser->full_name;
                 $user->fellowship_id = $authUser->fellowship_id;
                 $user->password = bcrypt($request->input('password'));
                 $user->remember_token = str_random(10);
@@ -118,6 +121,18 @@ class UserController extends Controller
             return response()->json(['error' => $ex->getMessage()], $ex->getStatusCode());
         }
     }
+    protected function getAllUsers() {
+        try {
+            $authUser = JWTAuth::parseToken()->toUser();
+            if(!$authUser) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+            $allUsers = User::with('roles')->orderBy('id', 'desc')->paginate(15);
+            return response()->json(['all_users' => $allUsers], 200);
+        } catch(Exception $ex) {
+            return response()->json(['error' => $ex->getMessage()] ,$ex->getStatusCode());
+        }
+    }
     protected function getUsers() {
         try {
             $authUser = JWTAuth::parseToken()->toUser();
@@ -125,7 +140,7 @@ class UserController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             // $users = User::all();
-            $users = User::where('fellowship_id', '=', $authUser->fellowship_id)->with('roles')->paginate(10);
+            $users = User::where('fellowship_id', '=', $authUser->fellowship_id)->with('roles')->orderBy('id', 'desc')->paginate(10);
             return response()->json(['users' => $users], 200);
         } catch(Exception $ex) {
             return response()->json(['error' => $ex->getMessage()] ,$ex->getStatusCode());
@@ -227,7 +242,7 @@ class UserController extends Controller
             if(Hash::check($old_password, $user->password)) {
                 $user->password = bcrypt($request['password']);
                 $user->updated_at = new DateTime();
-                if($user->save()) {
+                if($user->update()) {
                     return response()->json(['message' => 'password updated successfully'], 200);
                 }
                 else {
@@ -253,14 +268,14 @@ class UserController extends Controller
             }        
             $getUser = JWTAuth::parseToken()->toUser();
             // check own delete
-            if($user == $getUser) {
-                return response()->json(['message' => 'if you want to delete yourself please delete your account'], 403);
-            }
+            // if($user == $getUser) {
+            //     return response()->json(['message' => 'if you want to delete yourself please delete your account'], 403);
+            // }
             if($user->delete()) {
                 return response()->json(['message' => 'user deleted successfully'], 200);
             }
             else {
-                return response()->json(['error' => 'Ooops! something went wrong'], 500);
+                return response()->json(['message' => 'Ooops! something went wrong, user is not deleted'], 500);
             }
         }catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);

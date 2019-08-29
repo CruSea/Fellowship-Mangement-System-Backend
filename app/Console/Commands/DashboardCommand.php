@@ -64,6 +64,7 @@ class DashboardCommand extends Command
                         $today_message->message = $message;
                         $today_message->alarm_message_id = $alarmMessage->id;
                         $today_message->remaining_time = $remaining_hour;
+                        $today_message->fellowship_id = $alarmMessage->get_fellowship_id;
                         $today_message->save();
                     }
                 }
@@ -91,6 +92,7 @@ class DashboardCommand extends Command
                         $daily_today_message->message = $daily_message;
                         $daily_today_message->schedule_message_id = $daily->id;
                         $daily_today_message->remaining_time = $daily_remaining_hour;
+                        $daily_today_message->fellowship_id = $daily->get_fellowship_id;
                         $daily_today_message->save();
                     }
                 }
@@ -118,6 +120,7 @@ class DashboardCommand extends Command
                             $weekly_today_message->message = $weekly_message;
                             $weekly_today_message->schedule_message_id = $weekly->id;
                             $weekly_today_message->remaining_time = $weekly_remaining_hour;
+                            $weekly_today_message->fellowship_id = $weekly->get_fellowship_id;
                             $weekly_today_message->save();
                         }
                     }
@@ -154,6 +157,7 @@ class DashboardCommand extends Command
                             $monthly_today_message->message = $monthly_message;
                             $monthly_today_message->schedule_message_id = $monthly->id;
                             $monthly_today_message->remaining_time = $monthly_remaining_hour;
+                            $monthly_today_message->fellowship_id = $monthly->get_fellowship_id;
                             $monthly_today_message->save();
                         }
                     }

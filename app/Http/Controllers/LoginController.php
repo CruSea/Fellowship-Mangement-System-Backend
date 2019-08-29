@@ -56,7 +56,7 @@ class LoginController extends Controller
            // $status = DB::table('users')->where('email', $request->input('email'))->value('status');
             try {
                 if(!$token = JWTAuth::attempt($credential)) {
-                    return response()->json(['message' => 'Invalid token'], 401);
+                    return response()->json(['message' => 'Invalid Email or Password'], 401);
                 }
                 $status = JWTAuth::toUser($token);
                 if($status->status == false) {

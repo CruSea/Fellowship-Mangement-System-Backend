@@ -99,10 +99,13 @@ class ContactController extends Controller
 
             if($contact->save()) {
                 // if($contact->team_id != null) {
-                $contact_team = new ContactTeam();
-                $contact_team->team_id = $team->id;
-                $contact_team->contact_id = $contact->id;
-                $contact_team->save();
+                if($team instanceof Team) {
+                    $contact_team = new ContactTeam();
+                    $contact_team->team_id = $team->id;
+                    $contact_team->contact_id = $contact->id;
+                    $contact_team->save();
+                }
+                
                 // }
                 return response()->json(['message' => 'contact added successfully'], 200);
                 
@@ -135,14 +138,11 @@ class ContactController extends Controller
             }
 
             // $contacts = Contact::all();
-            $contacts = Contact::where([['is_under_graduate', '=', 1],['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
+            $contacts = Contact::where([['is_under_graduate', '=', 1],['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
             $countContact = Contact::count();
             $count_under_graduate = count($contacts);
             if($countContact == 0) {
-                return response()->json(['message' => 'contact is not available'], 404);
-            }
-            if($count_under_graduate == 0) {
-                return response()->json(['message' => 'under graduate member is not found'], 404);
+                return response()->json(['contacts' => $contacts], 200);
             }
             return response()->json(['contacts' => $contacts], 200);
         } catch(Exception $ex) {
@@ -403,7 +403,7 @@ class ContactController extends Controller
                     }
                 }
                 if($count_add_contacts == 0) {
-                    return response()->json(['message' => 'no contact is added'], 404);
+                    return response()->json(['message' => 'no contact is added'], 200);
                 }
                 return response()->json(['message' => $count_add_contacts.' contacts added successfully'], 200);
             }

@@ -50,6 +50,11 @@ class UsersTableSeeder extends Seeder
         $createUser->description  = 'create new users'; // optional
         $createUser->save();
 
+        $getAllUser = new Permission();
+        $getAllUser->name           = 'get-all-user';
+        $getAllUser->display_name   = 'get all users';
+        $getAllUser->description    = 'get all this system users';
+        $getAllUser->save();
         $getUser = new Permission();
         $getUser->name          = 'get-user';
         $getUser->display_name  = 'get user';
@@ -162,11 +167,11 @@ class UsersTableSeeder extends Seeder
         $getMessage->description     = 'get sent message and respond message from users';
         $getMessage->save();
 
-        $deleteContactMessage = new Permission();
-        $deleteContactMessage->name               = 'delete-contact-message';
-        $deleteContactMessage->display_name       = 'delete contact message';
-        $deleteContactMessage->description        = 'delete contact message';
-        $deleteContactMessage->save();
+        $removeContactMessage = new Permission();
+        $removeContactMessage->name               = 'delete-contact-message';
+        $removeContactMessage->display_name       = 'delete contact message';
+        $removeContactMessage->description        = 'delete contact message';
+        $removeContactMessage->save();
 
 
         // negarit_api permission
@@ -230,6 +235,7 @@ class UsersTableSeeder extends Seeder
                 $editUserStatus,
                 $editUserRole,
                 $editOwnPassword,
+                $getAllUser,
                 $getUser,
                 $getMe,
 
@@ -257,7 +263,7 @@ class UsersTableSeeder extends Seeder
 
                 $sendMessage,
                 $getMessage,
-                $deleteContactMessage,
+                $removeContactMessage,
 
 
             ));
@@ -298,7 +304,7 @@ class UsersTableSeeder extends Seeder
 
                 $sendMessage,
                 $getMessage,
-                $deleteContactMessage,
+                $removeContactMessage,
             )
         );
         $adminRole->attachPermissions(
@@ -335,7 +341,7 @@ class UsersTableSeeder extends Seeder
 
                 $sendMessage,
                 $getMessage,
-                $deleteContactMessage
+                $removeContactMessage
 
             ));
         $editerRole->attachPermissions(
@@ -355,7 +361,7 @@ class UsersTableSeeder extends Seeder
 
                 $sendMessage,
                 $getMessage,
-                $deleteContactMessage
+                $removeContactMessage
             ));
         $viewerRole->attachPermissions(
             array(

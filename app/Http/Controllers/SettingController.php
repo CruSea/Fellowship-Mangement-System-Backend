@@ -80,10 +80,10 @@ class SettingController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $settings = Setting::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+            $settings = Setting::where('fellowship_id', '=', $user->fellowship_id)->get();
             $countSetting = $settings->count();
             if($countSetting == 0) {
-                return response()->json(['message' => 'setting was not found'], 404);
+                return response()->json(['settings' => $settings], 200);
             }
             return response()->json(['settings' => $settings], 200);
         } catch(Exception $ex) {

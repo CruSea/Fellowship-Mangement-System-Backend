@@ -19,6 +19,7 @@ class CreateFellowshipMessagesTable extends Migration
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
             $table->boolean('under_graduate');
+            $table->boolean('is_removed')->default(false);
             $table->json('sent_by');
             $table->timestamps();
         });

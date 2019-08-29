@@ -55,6 +55,7 @@ class NegaritController extends Controller
             $smsPort->negarit_sms_port_id = $request->input('negarit_sms_port_id');
             $smsPort->negarit_campaign_id = $request->input('negarit_campaign_id');
             $smsPort->port_type = $request->input('port_type');
+            $smsPort->created_by = $user;
             if($smsPort->save()) {
                 return response()->json(['message' => 'port saved successfully'], 200);
             }
@@ -73,6 +74,7 @@ class NegaritController extends Controller
             if(!$smsPort || $smsPort->fellowship_id != $user->fellowship_id) {
                 return response()->json(['error' => 'sms port is not found'], 404);
             }
+            $smsPort->created_by = json_decode($smsPort->created_by);
             return response()->json(['sms_port', $smsPort], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
@@ -84,11 +86,14 @@ class NegaritController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            $smsPorts = SmsPort::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+            $smsPorts = SmsPort::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
             $countSmsPorts = $smsPorts->count();
             if($countSmsPorts == 0) {
-                return response()->json(['message' => 'sms port was not found'], 404);
+                return response()->json(['sms_ports' => $smsPorts], 200);
             }
+            for($i = 0; $i < $countSmsPorts; $i++) {
+                    $smsPorts[$i]->created_by = json_decode($smsPorts[$i]->created_by);
+                }
             return response()->json(['sms_ports' => $smsPorts], 200);
         } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
@@ -129,6 +134,7 @@ class NegaritController extends Controller
             $smsPort->api_key = isset($request['api_key']) ? $request['api_key'] : $smsPort->api_key;
             $smsPort->negarit_sms_port_id = isset($request['negarit_sms_port_id']) ? $request['negarit_sms_port_id'] : $smsPort->negarit_sms_port_id;
             $smsPort->negarit_campaign_id = isset($request['negarit_campaign_id']) ? $request['negarit_campaign_id'] : $smsPort->negarit_campaign_id;
+            $smsPort->created_by = $user;
             if($smsPort->update()) {
                 return response()->json(['message' => 'port updated successfully'], 200);
             }

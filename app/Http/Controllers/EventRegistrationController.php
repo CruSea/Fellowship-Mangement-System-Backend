@@ -422,7 +422,7 @@ class EventRegistrationController extends Controller
 		                        $sent_message->is_delivered = true;
 		                        $sent_message->update();
 		                        return response()->json(['message' => 'message sent successfully',
-		                        'sent message' => $decoded_response], 200);
+		                        'sent_message' => $decoded_response], 200);
 		                    } else {
 		                    	return response()->json(['response' => $decoded_response], 500);
 		                    }
@@ -457,7 +457,7 @@ class EventRegistrationController extends Controller
     					$event_registration->registration_key_id = $registration_key->registration_key;	
     				}
     				$event_registration->sent_by = json_decode($event_registration->sent_by);
-    				return response()->json(['event registration' => $event_registration], 200);
+    				return response()->json(['event_registration' => $event_registration], 200);
     			} else {
     				return response()->json(['error' => 'event registration is not found'], 404);
     			}
@@ -472,11 +472,10 @@ class EventRegistrationController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			// $event_registrations = EventRegistration::paginate(10);
-    			$event_registrations = EventRegistration::where('get_fellowship_id', '=', $user->fellowship_id)->paginate(10);
+    			$event_registrations = EventRegistration::where('get_fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
     			$count = $event_registrations->count();
     			if($count == 0) {
-    				return response()->json(['response' => 'event registration not found'], 404);
+    				return response()->json(['event_registrations' => $event_registrations], 200);
     			}
     			for($i = 0; $i < $count; $i++) {
     				$registration_key_id = $event_registrations[$i]->registration_key_id;
@@ -487,7 +486,7 @@ class EventRegistrationController extends Controller
     				$event_registrations[$i]->sent_by = json_decode($event_registrations[$i]->sent_by);
     				
     			}
-    			return response()->json(['event registrations' => $event_registrations], 200);
+    			return response()->json(['event_registrations' => $event_registrations], 200);
     		} else {
     			return response()->json(['error' => 'token expired'], 401);
     		}
@@ -769,7 +768,7 @@ class EventRegistrationController extends Controller
 		                        $sent_message->is_delivered = true;
 		                        $sent_message->update();
 		                        return response()->json(['message' => 'message sent successfully',
-		                        'sent message' => $decoded_response], 200);
+		                        'sent_message' => $decoded_response], 200);
 		                    } else {
 		                    	return response()->json(['response' => $decoded_response], 500);
 		                    }

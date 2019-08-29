@@ -23,6 +23,7 @@ class CreateSmsPortsTable extends Migration
             $table->string('api_key');
             $table->integer('negarit_sms_port_id');
             $table->integer('negarit_campaign_id');
+            $table->json('created_by');
             $table->timestamps();
         });
     }

@@ -28,7 +28,7 @@ class MessageController extends Controller
     public function __construct() {
         $this->middleware('ability:,send-message', ['only' => ['sendContactMessage', 'sendTeamMessage']]);
         $this->middleware('ability:,get-message', ['only' => ['getContactMessage', 'getContactsMessages', 'getNegaritRecievedMessage']]);
-        $this->middleware('ability:,delete-contact-message', ['only' => ['deleteContactMessage']]);
+        // $this->middleware('ability:,delete-contact-message', ['only' => ['removeContactMessage']]);
         $this->negarit_api_url = 'https://api.negarit.net/api/';
     }
     public function sendContactMessage() {
@@ -45,7 +45,7 @@ class MessageController extends Controller
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
+                return response()->json(['response' => 'validation error', 'error' => $validator->messages()], 500);
             }
 
             // $getSmsPortName = SmsPort::find($request['port_name']);
@@ -146,18 +146,18 @@ class MessageController extends Controller
                         $sentMessage->is_delivered = true;
                         $sentMessage->update();
                         return response()->json(['message' => 'message sent successfully',
-                        'sent message' => $send_message], 200);
+                        'sent_message' => $send_message], 200);
                     }
                     $sentMessage->is_sent = true;
                     $sentMessage->is_delivered = true;
                     $sentMessage->update();
                     return response()->json(['response' => $decoded_response], 500);
                 }
-                return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
+                return response()->json(['sent_message' => [], 'response' => 'Ooops! something went wrong, message is not sent'], 500);
             }
-            return response()->json(['message' => '!Ooops something went wrong', 'error' => 'message is not sent, please send again'], 500);
+            return response()->json(['response' => '!Ooops something went wrong, message is not sent', 'error' => 'message is not sent, please send again'], 500);
         } catch(Exception $ex) {
-            return response()->json(['message' => '!Ooops something went wrong', 'error' => $ex->getMessage()], 500);
+            return response()->json(['response' => '!Ooops something went wrong, message is not sent', 'error' => $ex->getMessage()], 500);
         }
     }
     public function getContactMessage($id) {
@@ -167,7 +167,7 @@ class MessageController extends Controller
                 return response()->json(['error' => 'token expired'], 401);
             }
             $getMessage = SentMessage::find($id);
-            if($getMessage instanceof SentMessage && $getMessage->fellowship_id == $user->fellowship_id) {
+            if($getMessage instanceof SentMessage && $getMessage->fellowship_id == $user->fellowship_id && $getMessage->is_removed == false) {
                 $getMessage->sent_by = json_decode($getMessage->sent_by);
                 return response()->json(['message' => $getMessage], 200);
             }
@@ -185,11 +185,10 @@ class MessageController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            // $contactMessage = SentMessage::paginate(10);
-            $contactMessage = SentMessage::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
+            $contactMessage = SentMessage::where([['fellowship_id', '=', $user->fellowship_id], ['is_removed', '=', false]])->orderBy('id', 'desc')->paginate(10);
             $countMessages = $contactMessage->count();
             if($countMessages == 0) {
-                return response()->json(['message is not available'], 404);
+                return response()->json(['messages' => $contactMessage], 200);
             }
             for($i = 0; $i < $countMessages; $i++) {
                 $contactMessage[$i]->sent_by = json_decode($contactMessage[$i]->sent_by);
@@ -199,7 +198,7 @@ class MessageController extends Controller
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }
-    public function deleteContactMessage($id) {
+    public function removeContactMessage($id) {
         try {
             $user = JWTAuth::parseToken()->toUser();
             if(!$user) {
@@ -207,10 +206,13 @@ class MessageController extends Controller
             }
             $sentMessage = SentMessage::find($id);
             if($sentMessage instanceof SentMessage && $sentMessage->fellowship_id == $user->fellowship_id) {
-                if($sentMessage->delete()) {
-                    return response()->json(['message' => 'message deleted successfully'], 200);
+                $sentMessage->is_removed = 1;
+                if($sentMessage->update()) {
+                    return response()->json(['message' => 'message removed successfully'], 200);
                 }
-                return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'message is not deleted'], 500);
+                else {
+                    return response()->json(['message' => 'Ooops! something went wrong, message is not removed'], 500);
+                }
             } else {
                 return response()->json(['error' => 'message is not available'], 404);
             }
@@ -238,7 +240,7 @@ class MessageController extends Controller
             }
             $team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
             if(!$team) {
-                return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
+                return response()->json(['message' => 'team is not found'], 404);
             }
 
             $getSmsPortName = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
@@ -249,18 +251,21 @@ class MessageController extends Controller
             $fellowship_id = $user->fellowship_id;
 
             $team_id = $team->id;
-            $team_message->message = $request['message'];
-            $team_message->team_id = $team_id;
-            $team_message->sent_by = $user;
-            $team_message->under_graduate = true;
-            $team_message->fellowship_id = $user->fellowship_id;
-            $team_message->save();
+
             $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
             $team_id)->select('contact_id')->get())->get();
 
             if(count($contacts) == 0) {
                 return response()->json(['message' => 'member is not found in '.$team->name. ' team'], 404);
             }
+
+            $team_message->message = $request['message'];
+            $team_message->team_id = $team_id;
+            $team_message->sent_by = $user;
+            $team_message->under_graduate = true;
+            $team_message->fellowship_id = $user->fellowship_id;
+            $team_message->save();
+            
 
             // get phones that recieve the message and not recieve the message
             // $get_successfull_sent_phones = array();
@@ -504,12 +509,10 @@ class MessageController extends Controller
         try {
             $user = JWtAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $team_message = TeamMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
-                // $team_message = Team::whereIn('id', TeamMessage::where(''))
-                // $team_message = Team::
+                $team_message = TeamMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id], ['is_removed', '=', false]])->orderBy('id', 'desc')->paginate(10);
                 $count_team_message = count($team_message);
                 if($count_team_message == 0) {
-                    return response()->json(['message' => 'empty team message', 'team message' => []], 404);
+                    return response()->json(['team_message' => $team_message], 200);
                 }
                 for($i = 0; $i < $count_team_message; $i++) {
                     $team = Team::find($team_message[$i]->team_id);
@@ -531,10 +534,10 @@ class MessageController extends Controller
         try {
             $user = JWtAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $team_message = TeamMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
+                $team_message = TeamMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id], ['is_removed', '=', false]])->orderBy('id', 'desc')->paginate(10);
                 $count_team_message = count($team_message);
                 if($count_team_message == 0) {
-                    return response()->json(['message' => 'empty team message', 'team message' => []], 404);
+                    return response()->json(['team_message' => $team_message], 200);
                 }
                 for($i = 0; $i < $count_team_message; $i++) {
                     $team = Team::find($team_message[$i]->team_id);
@@ -558,10 +561,11 @@ class MessageController extends Controller
             if($user instanceof User) {
                 $team_message = TeamMessage::find($id);
                 if($team_message instanceof TeamMessage && $team_message->fellowship_id == $user->fellowship_id) {
-                    if($team_message->delete()) {
-                        return response()->json(['message' => 'team message deleted successfully'], 200);
+                    $team_message->is_removed = 1;
+                    if($team_message->update()) {
+                        return response()->json(['message' => 'team message removed successfully'], 200);
                     }
-                    return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'team message is not deleted'], 500);
+                    return response()->json(['message' => 'Ooops! something went wrong, please try again'], 500);
                 }
                 return response()->json(['error' => 'team message is not found'], 404);
             } else {
@@ -852,10 +856,10 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
+                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', true], ['fellowship_id', '=', $user->fellowship_id], ['is_removed', '=', false]])->orderBy('id', 'desc')->paginate(10);
                 $count_message = count($fellowship_message);
                 if($count_message == 0) {
-                    return response()->json(['message' => 'empty fellowship message'], 404);
+                    return response()->json(['message' => $fellowship_message], 200);
                 }
                 for($i = 0; $i < $count_message; $i++) {
                     $fellowship_message[$i]->sent_by = json_decode($fellowship_message[$i]->sent_by);
@@ -873,15 +877,35 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
+                $fellowship_message = FellowshipMessage::where([['under_graduate', '=', false], ['fellowship_id', '=', $user->fellowship_id], ['is_removed', '=', false]])->orderBy('id', 'desc')->paginate(10);
                 $count_message = count($fellowship_message);
                 if($count_message == 0) {
-                    return response()->json(['message' => 'empty fellowship message'], 404);
+                    return response()->json(['message' => $fellowship_message], 200);
                 }
                 for($i = 0; $i < $count_message; $i++) {
                     $fellowship_message[$i]->sent_by = json_decode($fellowship_message[$i]->sent_by);
                 }
                 return response()->json(['message' => $fellowship_message], 200);
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function deleteFellowshipMessage($id) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $fellowship_message = FellowshipMessage::find($id);
+                if($fellowship_message instanceof FellowshipMessage && $fellowship_message->fellowship_id == $user->fellowship_id) {
+                    $fellowship_message->is_removed = 1;
+                    if($fellowship_message->update()) {
+                        return response()->json(['message' => 'fellowship message removed successfully'], 200);
+                    }
+                    return response()->json(['message' => 'Ooops! something went wrong, please try again'], 500);
+                }
+                return response()->json(['error' => 'fellowship message is not found'], 404);
             } else {
                 return response()->json(['error' => 'token expired'], 401);
             }
@@ -1025,10 +1049,10 @@ class MessageController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                $event_message = EventMessage::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
+                $event_message = EventMessage::where([['fellowship_id', '=', $user->fellowship_id], ['is_removed', '=', false]])->orderBy('id', 'desc')->paginate(10);
                 $count_message = $event_message->count();
                 if($count_message == 0) {
-                    return response()->json(['response' => 'empty event message'], 404);
+                    return response()->json(['message' => $event_message], 200);
                 }
                 for($i = 0; $i < $count_message; $i++) {
                     $event = Event::find($event_message[$i]->event_id);
@@ -1036,6 +1060,26 @@ class MessageController extends Controller
                     $event_message[$i]->event_id = $event->event_name;
                 }
                 return response()->json(['message' => $event_message], 200);
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function deleteEventMessage($id) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $event_message = EventMessage::find($id);
+                if($event_message instanceof EventMessage && $event_message->fellowship_id == $user->fellowship_id) {
+                    $event_message->is_removed = 1;
+                    if($event_message->update()) {
+                        return response()->json(['message' => 'event message removed successfully'], 200);    
+                    }
+                    return response()->json(['message' => 'Ooops! something went wrong, please try again'], 500);
+                }
+                return response()->json(['error' => 'event message is not found'], 404);
             } else {
                 return response()->json(['error' => 'token expired'], 401);
             }

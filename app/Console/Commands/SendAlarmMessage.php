@@ -73,10 +73,10 @@ class SendAlarmMessage extends Command
                 return response()->json(['error' => 'API_KEY is not found'], 404);
             }
             if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($alarm->send_time))) == 0) {
-                if($alarm->sent_to != null) {
+                if($alarm->phone != null) {
                     $contains_name = Str::contains($alarm->message, '{name}');
                     $replaceName = $alarm->message;
-                    $contact = Contact::where([['phone', '=', $alarm->sent_to], ['fellowship_id', '=', $alarm->get_fellowship_id]])->first();
+                    $contact = Contact::where([['phone', '=', $alarm->phone], ['fellowship_id', '=', $alarm->get_fellowship_id]])->first();
                     if($contact instanceof Contact) {
                         if($contains_name) {
                             $replaceName = Str::replaceArray('{name}', [$contact->full_name], $alarm->message);
@@ -85,7 +85,7 @@ class SendAlarmMessage extends Command
                     $message_send_request = array();
                     $message_send_request['API_KEY'] = $setting->value;
                     $message_send_request['message'] = $replaceName;
-                    $message_send_request['sent_to'] = $alarm->sent_to;
+                    $message_send_request['sent_to'] = $alarm->phone;
                     $message_send_request['campaign_id'] = $sms_port->negarit_campaign_id;
                     $negarit_response = \App\Http\Controllers\Controller::sendPostRequest($this->negarit_api_url, 
                             'api_request/sent_message?API_KEY?='.$setting->value, 
@@ -94,11 +94,11 @@ class SendAlarmMessage extends Command
                     if($decoded_response) {
                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                         $send_message = $decoded_response->sent_message;
-                        dd('message sent successfully ');
+                        dd('message sent successfully s ');
                         // return response()->json(['message' => 'message sent successfully',
                         // 'sent message' => $send_message], 200);
                     }
-                    dd('message sent successfully ');
+                    dd('message sent successfully d ');
                     // dd('message not sent successfully '. $decoded_response);
                     // return response()->json(['message' => "Ooops! something went wrong", 'error' => $decoded_response], 500);
                     }
@@ -107,9 +107,13 @@ class SendAlarmMessage extends Command
                 // return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
                 }
                 if($alarm->team_id != null) {
-                                        
+                                        // dd('team');
                     $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
-                    $alarm->team_id)->select('contact_id')->get())->get();
+                    $alarm->team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 1)->get();
+                    if($alarm->for_under_graduate == 0) {
+                        $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
+                        $alarm->team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 0)->get();
+                    }
                     $team = Team::find($alarm->team_id);
 
                     if(count($contacts) == 0) {
@@ -140,25 +144,24 @@ class SendAlarmMessage extends Command
                     // dd('about here');
                     if($decoded_response) { 
                         if(isset($decoded_response->status)) {
-                            dd('message sent to the team successfully');
-                            // return response()->json(['response' => $decoded_response], 200);
+                            dd('message sent to the team successfully ');
                         }
                         else {
-                            dd('message sent successfully to team 2');
-                            // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
+                            dd('message sent successfully to team 2 ');
                         }
                         dd('message is not sent');
                     } else {
                         dd('not sent');
-                        // dd('message sent to the team successfully three');
-                        // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                     } 
                 }
                 if($alarm->fellowship_id != null) {
                     // dd('hi man');
                     $decoded_value = json_decode($alarm->sent_by);
                     $fellowship_id = $decoded_value->fellowship_id;
-                    $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
+                    $contacts = Contact::where([['fellowship_id', '=', $fellowship_id], ['is_under_graduate', '=', 1]])->get();
+                    if($alarm->for_under_graduate == 0) {
+                        $contacts = Contact::where([['fellowship_id', '=', $fellowship_id], ['is_under_graduate', '=', 0]])->get();
+                    }
                     $fellowship = Fellowship::find($fellowship_id);
                     if(count($contacts) == 0) {
                         return response()->json(['message' => 'contact is not found in '. $fellowship->university_name. ' fellowship'], 404);
@@ -187,15 +190,15 @@ class SendAlarmMessage extends Command
 
                     if($decoded_response) { 
                         if(isset($decoded_response->status)) {
-                            // dd('message sent to the fellowship successfully');
+                            dd('message sent to the fellowship successfully');
                             // return response()->json(['response' => $decoded_response], 200);
                         }
                         else {
-                            // dd('message sent to the fellowship successfully two');
+                            dd('message sent to the fellowship successfully two');
                             // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                         }
                     } else {
-                        // dd('message sent to the team successfully three');
+                        dd('message sent to the team successfully three');
                         // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                     }
                 }

@@ -91,6 +91,77 @@ class ScheduledMessageController extends Controller
     		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
     	}
     }
+    public function addMessageForPostGraduateTeam() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $request = request()->only('port_name', 'type', 'start_date', 'end_date', 'sent_time', 'team','message');
+                $rule = [
+                    'port_name' => 'required|string|max:255',
+                    'type' => 'required|string|min:1',
+                    'start_date' => 'required|date_format:Y-m-d|after:today',
+                    'end_date' => 'required|date_format:Y-m-d|after:tomorrow',
+                    'sent_time' => 'required|date_format:H:i',
+                    'team' => 'required|string|min:1',
+                    'message' => 'required|string|min:1',
+                ];
+                $validator = Validator::make($request, $rule);
+                if($validator->fails()) {
+                    return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
+                }
+                $team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
+                if(!$team) {
+                    return response()->json(['error' => 'team is not found'], 404);
+                }
+                $sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
+                if(!$sms_port) {
+                    return  response()->json(['error' => 'sms port is not found'], 404);
+                }
+                if(Carbon::parse($request['start_date'])->diffInDays(Carbon::parse($request['end_date']), false) < 0) {
+                    return response()->json(['error' => "end date can't be sooner than start date"], 400);
+                }
+                $team_id = $team->id;
+                $sms_port_id = $sms_port->id;
+
+                $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
+                $team_id)->select('contact_id')->get())->get();
+
+                if(count($contacts) == 0) {
+                    return response()->json(['message' => 'member is not found in '.$team->name. ' team'], 404);
+                }
+
+                $api_key = $sms_port->api_key;
+                // check stting existance
+                $setting = Setting::where([['name', '=', 'API_KEY'],['value', '=', $api_key], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
+
+                $shceduled_message = new ScheduleMessage();
+                $shceduled_message->type = $request['type'];
+                $shceduled_message->start_date = $request['start_date'];
+                $shceduled_message->end_date = $request['end_date'];
+                $shceduled_message->sent_time = $request['sent_time'];
+                $shceduled_message->message = $request['message'];
+                $shceduled_message->team_id = $team_id;
+                $shceduled_message->sent_to = $team->name. ' team';
+                $shceduled_message->get_fellowship_id = $user->fellowship_id;
+                $shceduled_message->for_under_graduate = false;
+                $shceduled_message->sms_port_id = $sms_port_id;
+                // $shceduled_message->key = $key;
+                $shceduled_message->sent_by = $user;
+                if($shceduled_message->save()) {
+                    return response()->json(['message' => 'message scheduled successfully'], 200);
+                } else {
+                    return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'scheduled message is not sent, please try again'], 500);
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
     public function addMessageForFellowship() {
     	try {
     		$user = JWTAuth::parseToken()->toUser();
@@ -155,6 +226,72 @@ class ScheduledMessageController extends Controller
     	} catch(Exception $ex) {
     		return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
     	}
+    }
+    public function addMessageForPostGraduateFellowship() {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if($user instanceof User) {
+                $request = request()->only('port_name','type', 'start_date', 'end_date', 'sent_time','message');
+                $rule = [
+                    'port_name' => 'required|string|max:255',
+                    'type' => 'required|string|min:1',
+                    'start_date' => 'required|date_format:Y-m-d|after:yesterday',
+                    'end_date' => 'required|date_format:Y-m-d|after:today',
+                    'sent_time' => 'required|date_format:H:i',
+                    'message' => 'required|string|min:1',
+                ];
+                $validator = Validator::make($request, $rule);
+                if($validator->fails()) {
+                    return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 400);
+                }
+                $sms_port = SmsPort::where([['port_name', '=', $request['port_name']], ['fellowship_id', '=', $user->fellowship_id]])->first();
+                if(!$sms_port) {
+                    return  response()->json(['error' => 'sms port is not found'], 404);
+                }
+
+                if(Carbon::parse($request['start_date'])->diffInDays(Carbon::parse($request['end_date']), false) < 0) {
+                    return response()->json(['error' => "end date can't be sooner than start date"], 400);
+                }
+                $sms_port_id = $sms_port->id;
+                $fellowship_id = $user->fellowship_id;
+                $fellowship = Fellowship::find($fellowship_id);
+
+                $contacts = Contact::where('fellowship_id', '=', $fellowship_id)->get();
+
+                if(count($contacts) == 0) {
+                    return response()->json(['message' => 'member is not found in '. $fellowship->university_name. ' fellowship'], 404);
+                }
+
+                $api_key = $sms_port->api_key;
+                // check stting existance
+                $setting = Setting::where([['name', '=', 'API_KEY'],['value', '=', $api_key], ['fellowship_id', '=', $user->fellowship_id]])->exists();
+                if(!$setting) {
+                    return response()->json(['error' => 'API_KEY is not found'], 404);
+                }
+
+                $shceduled_message = new ScheduleMessage();
+                $shceduled_message->type = $request['type'];
+                $shceduled_message->start_date = $request['start_date'];
+                $shceduled_message->end_date = $request['end_date'];
+                $shceduled_message->sent_time = $request['sent_time'];
+                $shceduled_message->message = $request['message'];
+                $shceduled_message->fellowship_id = $fellowship_id;
+                $shceduled_message->sent_to = $fellowship->university_name;
+                $shceduled_message->sms_port_id = $sms_port_id;
+                $shceduled_message->get_fellowship_id = $user->fellowship_id;
+                $shceduled_message->for_under_graduate = false;
+                $shceduled_message->sent_by = $user;
+                if($shceduled_message->save()) {
+                    return response()->json(['message' => 'message scheduled successfully'], 200);
+                } else {
+                    return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'scheduled message is not sent, please try again'], 500);
+                }
+            } else {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+        } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
     }
     public function addMessageForEvent() {
     	try {
@@ -328,11 +465,10 @@ class ScheduledMessageController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			// $scheduled_messages = ScheduleMessage::paginate(10);
-    			$scheduled_messages = ScheduleMessage::where('get_fellowship_id', '=', $user->fellowship_id)->paginate(10);
+    			$scheduled_messages = ScheduleMessage::where('get_fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
     			$count_message = $scheduled_messages->count();
     			if($count_message == 0) {
-    				return response()->json(['message' => 'scheduled message is empty'], 404);
+    				return response()->json(['scheduled_messages' =>$scheduled_messages], 200);
     			}
     			for($i = 0; $i < $count_message; $i++) {
     				$scheduled_messages[$i]->sent_by = json_decode($scheduled_messages[$i]->sent_by);

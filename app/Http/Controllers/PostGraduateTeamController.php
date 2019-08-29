@@ -138,7 +138,7 @@ class PostGraduateTeamController extends Controller
                 }
                 $team_id = $team->id;
                 $postGradautes = Contact::whereIn('id', ContactTeam::where('team_id','=', 
-                $team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 0)->paginate(10);
+                $team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 0)->orderBy('id', 'desc')->paginate(10);
                 if (!$postGradautes) {
                     return response()->json(['message' => 'something went wrong', 'error' => 'contact is not found'], 404);
                 }
@@ -146,7 +146,7 @@ class PostGraduateTeamController extends Controller
                 $count = count($postGradautes);
                 
                 if($count == 0) {
-                    return response()->json(['message' => 'contact is not found'], 404);
+                    return response()->json(['contacts' => $postGradautes], 200);
                 }
                 return response()->json(['contacts' => $postGradautes], 200);
             } else {
@@ -278,9 +278,9 @@ class PostGraduateTeamController extends Controller
                             }
                         }
                         if($count_add_contacts == 0) {
-                            dd('member is not added to '.$team->name.' team');
+                            return response()->json(['message' => 'member is not added to '. $teram->name. ' team'], 200);
                         }
-                        dd($count_add_contacts.' contacts added to '.$team->name.' team successfully');
+                        return response()->json(['message' => $count_add_contacts.' contacts added to '. $team->name.' team successfully'], 200);
                     }
                     else {
                         return response()->json(['message' => 'file is empty', 'error' => 'unable to add contact'], 404);
@@ -333,6 +333,38 @@ class PostGraduateTeamController extends Controller
                 json(['error' => 'token expired'], 401);
             }
         } catch(Exception $ex) {
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
+        }
+    }
+    public function deleteMember($name, $id) {
+        try {
+            $user = JWTAuth::parseToken()->toUser();
+            if(!$user) {
+                return response()->json(['error' => 'token expired'], 401);
+            }
+            $contact = Contact::find($id);
+            if(!$contact || $contact->fellowship_id != $user->fellowship_id) {
+                return response()->json(['message' => '404 error', 'error' => 'contact is not found'], 404);
+            }
+            $is_under_graduate = $contact->is_under_graduate;
+            if($is_under_graduate) {
+                return response()->json(['message' => 'this member is not post graduate'], 404);
+            }
+           $team = Team::where([['name', '=' , $name], ['fellowship_id', '=', $user->fellowship_id]])->first();
+           if(!$team) {
+               return response()->json(['message' => 'error found', 'error' => 'team is not found'], 404);
+           }
+           $is_contact_in_team = DB::table('contact_teams')->where([['team_id', '=', $team->id], ['contact_id', '=', $contact->id],])->first();
+           if(!$is_contact_in_team) {
+               return response()->json(['message' => 'error found', 'error' => 'contact is not found in the team'], 404);
+           }
+           $contact_team = DB::table('contact_teams')->where([['team_id', '=', $team->id], ['contact_id', '=', $contact->id],]);
+    
+           if($contact_team->delete()) {
+               return response()->json(['message' => 'contact deleted from the team successfully'], 200);
+           }
+           return response()->json(['message' => 'unexpected error', 'error' => "Ooops! contact doesn't deleted from the team successfully"], 500);
+        }catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }

@@ -46,11 +46,14 @@ class countMessages extends Command
 
         foreach ($sent_messages as $sent_message) {
             // today sent message
-            $Diff = Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($sent_message->created_at));
+            $Diff = Carbon::parse(date('Y-m-d H:i'))->diffInDays(Carbon::parse($sent_message->created_at));
             if($Diff == 0) {
+                // dd($Diff. ' | '. Carbon::parse($sent_message->created_at) .' | '. Carbon::parse(date('Y-m-d')));
                 $old_today_message = countMessage::where([['type', '=', 'today'], ['fellowship_id', '=', $sent_message->fellowship_id]])->first();
                 if($old_today_message instanceof countMessage) {
-                    $Diff_old = Carbon::parse(date('Y-m-d'))->diffInDays(Carbon::parse($old_today_message->updated_at));
+                    $Diff_old = Carbon::parse($sent_message->created_at)->diffInDays(Carbon::parse($old_today_message->updated_at));
+                    // dd(Carbon::parse($sent_message->created_at) . ' | '. Carbon::parse($old_today_message->updated_at));
+                    // dd($Diff_old);
                     if($Diff_old != 0) {
                         $old_today_message->count = 0;
                         $old_today_message->update();

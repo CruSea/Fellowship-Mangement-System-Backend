@@ -81,11 +81,10 @@ class EventController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
-    			// $events = Event::paginate(10);
-                $events = Event::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+                $events = Event::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
     			$count_event = $events->count();
     			if($count_event == 0) {
-    				return response()->json(['message' => 'event is empty'], 404);
+    				return response()->json(['events' => $events], 200);
     			}
                 for($i = 0; $i < $count_event; $i++) {
                     $events[$i]->created_by = json_decode($events[$i]->created_by);
@@ -351,13 +350,13 @@ class EventController extends Controller
                     return response()->json(['error' => 'event is not found'], 404);
                 }
                 $event_id = $event->id;
-                $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $event_id)->select('contact_id')->get())->paginate(10);
+                $contacts = Contact::whereIn('id', ContactEvent::where('event_id', '=', $event_id)->select('contact_id')->get())->orderBy('id', 'desc')->paginate(10);
                 if(!$contacts) {
                     return response()->json(['error' => 'something went wrong'], 404);
                 }
                 $count = $contacts->count();
                 if($count == 0) {
-                    return response()->json(['error' => 'contact is not found in '.$event->event_name.' event'], 404);
+                    return response()->json(['contacts' => $contacts], 200);
                 }
                 return response()->json(['contacts' => $contacts], 200);
 
@@ -520,9 +519,9 @@ class EventController extends Controller
                             }
                         }
                         if($count_add_contacts == 0) {
-                            dd('member is not added to '.$event->event_name.' event');
+                            return response()->json(['message' => 'no contact is added'], 200);
                         }
-                        dd($count_add_contacts.' contacts added to '.$event->event_name.' event successfully');
+                        return response()->json(['message' => $count_add_contacts.' contacts added to '.$event->event_name.' event successfully'], 200);
                     }
                     else {
                         return response()->json(['message' => 'file is empty', 'error' => 'unable to add contact'], 404);

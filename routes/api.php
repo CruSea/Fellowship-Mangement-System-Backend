@@ -65,9 +65,14 @@ Route::group(['prefix' => 'user'], function() {
     ]);
     
 });
-Route::get('/users', [
-    'uses' => 'UserController@getUsers'
-]);
+Route::group(['prefix' => 'users'], function() {
+    Route::get('/', [
+        'uses' => 'UserController@getUsers'
+    ]);
+    Route::get('/all', [
+        'uses' => 'UserController@getUsers',
+    ]);
+});
 Route::group(['prefix' => 'fellowship'], function() {
     Route::patch('/', [
         'uses' => 'FellowshipController@update',
@@ -83,10 +88,10 @@ Route::group(['prefix' => 'notification'], function() {
     Route::delete('/{id}', [
         'uses' => 'NotificationController@delete',
     ]);
-    Route::post('/seen', [
-        'uses' => 'NotificationController@seenNotification',
-    ]);
 });
+Route::delete('/notification-seen', [
+    'uses' => 'NotificationController@seenNotification',
+]);
 Route::get('/notifications', [
     'uses' => 'NotificationController@getNotifications',
 ]);
@@ -108,7 +113,7 @@ Route::get('/number_of_events', [
 Route::get('/events_list', [
     'uses' => 'DashboardController@eventList',
 ]);
-Route::get('/today_messages', [
+Route::get('/notify_today_messages', [
     'uses' => 'DashboardController@notifyTodayMessges',
 ]);
 Route::get('/today_messages', [
@@ -119,6 +124,12 @@ Route::get('/last_month_messages', [
 ]);
 Route::get('/total_messages', [
     'uses' => 'DashboardController@numberOfAllMessages',
+]);
+Route::get('/get_teams', [
+    'uses' => 'DashboardController@getTeams',
+]);
+Route::get('/get_events', [
+    'uses' => 'DashboardController@getEvents',
 ]);
 
 // Route::post('/importUsers', [
@@ -211,7 +222,7 @@ Route::group(['prefix' => 'message'], function(){
         'uses' => 'MessageController@getContactMessage',
     ]);
     Route::delete('/{id}', [
-        'uses' => 'MessageController@deleteContactMessage',
+        'uses' => 'MessageController@removeContactMessage',
     ]);
     Route::post('/search', [
         'uses' => "MessageController@searchContactMessage",
@@ -252,6 +263,9 @@ Route::group(['prefix' => 'fellowship-message'], function() {
     Route::get('/', [
         'uses' => 'MessageController@getFellowshipMessage',
     ]);
+    Route::patch('/{id}', [
+        'uses' => 'MessageController@deleteFellowshipMessage',
+    ]);
 });
 Route::group(['prefix' => 'post-graduate-fellowship-message'], function() {
     Route::post('/', [
@@ -273,6 +287,9 @@ Route::group(['prefix' => 'event-message'], function() {
     ]);
     Route::post('/search', [
         'uses' => 'MessageController@searchEventMessage',
+    ]);
+    Route::patch('/{id}', [
+        'uses' => 'MessageController@deleteEventMessage',
     ]);
 });
 Route::get('/messages', [
@@ -422,6 +439,9 @@ Route::group(['prefix' => 'post-graduate-team'], function() {
         Route::get('/', [
             'uses' => 'PostGraduateTeamController@seeMembers',
         ]);
+        Route::delete('/{id}', [
+            'uses' => 'PostGraduateTeamController@deleteMember',
+        ]);
 
     });
 });
@@ -460,8 +480,14 @@ Route::group(['prefix' => 'scheduled-message'], function(){
     Route::post('/team', [
         'uses' => 'ScheduledMessageController@addMessageForTeam',
     ]);
+    Route::post('/postGraduateTeam', [
+        'uses' => 'ScheduledMessageController@addMessageForPostGraduateTeam'
+    ]);
     Route::post('/fellowship', [
         'uses' => 'ScheduledMessageController@addMessageForFellowship',
+    ]);
+    Route::post('/postGraduateFellowship', [
+        'uses' => 'ScheduledMessageController@addMessageForPostGraduateFellowship',
     ]);
     Route::post('/event', [
         'uses' => 'ScheduledMessageController@addMessageForEvent',
@@ -489,8 +515,14 @@ Route::group(['prefix' => 'alarm-message'], function() {
     Route::post('/team', [
         'uses' => 'AlarmMessageController@addMessageForTeam',
     ]);
+    Route::post('/postGraduateTeam', [
+        'uses' => 'AlarmMessageController@addMessageForPostGraduateTeam',
+    ]);
     Route::post('/fellowship', [
         'uses' => 'AlarmMessageController@addMessageForFellowship',
+    ]);
+    Route::post('/postGraduateFellowship', [
+        'uses' => 'AlarmMessageController@addMessageForPostGraduateFellowship',
     ]);
     Route::post('/event', [
         'uses' => 'AlarmMessageController@addMessageForEvent',
@@ -574,3 +606,15 @@ Route::group(['prefix' => 'parse-registration-message'], function() {
         'uses' => 'ParseRegistrationMessage@RegisterMembers'
     ]);
 });
+
+Route::group(['prefix' => 'sms_registered_member'], function() {
+    Route::get('/{id}', [
+        'uses' => 'SmsRegisteredMembersController@show',
+    ]);
+    Route::delete('/{id}', [
+        'uses' => 'SmsRegisteredMembersController@removeRegisteredMember'
+    ]);
+});
+Route::get('/sms_registered_members', [
+    'uses' => 'SmsRegisteredMembersController@getMembers',
+]);

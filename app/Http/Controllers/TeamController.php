@@ -90,11 +90,10 @@ class TeamController extends Controller
             if(!$user) {
                 return response()->json(['error' => 'token expired'], 401);
             }
-            // $teams = Team::paginate(10);
-            $teams = Team::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
+            $teams = Team::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
             $countTeams = $teams->count();
             if($countTeams == 0) {
-                return response()->json(['error' => 'team is not found'], 404);
+                return response()->json(['teams' => $teams], 200);
             }
             for($i = 0; $i < $countTeams; $i++) {
                 $teams[$i]->created_by = json_decode($teams[$i]->created_by);
@@ -374,14 +373,14 @@ class TeamController extends Controller
             }
             $team_id = $team->id;
             $contacts = Contact::whereIn('id', ContactTeam::where('team_id','=', 
-                $team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 1)->paginate(10);
+                $team_id)->select('contact_id')->get())->where('is_under_graduate', '=', 1)->orderBy('id', 'desc')->paginate(10);
             if (!$contacts) {
                 return response()->json(['message' => 'something went wrong', 'error' => 'contact is not found'], 404);
             }
 
             $count = $contacts->count();
             if($count == 0) {
-                return response()->json(['message' => 'contact is not found'], 404);
+                return response()->json(['contacts' => $contacts], 200);
             }
             return response()->json(['contacts' => $contacts], 200);
         } catch(Exception $ex) {

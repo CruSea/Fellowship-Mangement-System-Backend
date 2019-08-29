@@ -20,6 +20,7 @@ class CreateUsersTable extends Migration
             $table->boolean('status')->default(false);
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
+            $table->string('created_by')->default('registration');
             $table->string('email')->unique();
             $table->string('password');
             $table->rememberToken();

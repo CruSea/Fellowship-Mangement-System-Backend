@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateEventMessagesTable extends Migration
+class CreateSmsRegisteredMembersTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,15 +13,16 @@ class CreateEventMessagesTable extends Migration
      */
     public function up()
     {
-        Schema::create('event_messages', function (Blueprint $table) {
+        Schema::create('sms_registered_members', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('message');
-            $table->integer('event_id')->unsigned();
-            $table->foreign('event_id')->references('id')->on('teams')->onDelete('cascade');
+            $table->string('full_name');
+            $table->string('phone');
+            $table->string('key');
+            $table->string('event');
+            $table->date('registered_date');
+            $table->date('registration_end_date');
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
-            $table->boolean('is_removed')->default(false);
-            $table->json('sent_by');
             $table->timestamps();
         });
     }
@@ -33,6 +34,6 @@ class CreateEventMessagesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('event_messages');
+        Schema::dropIfExists('sms_registered_members');
     }
 }

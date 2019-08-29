@@ -118,10 +118,10 @@ class GraduateController extends Controller
     	try {
 			$user = JWTAuth::parseToken()->toUser();
 			if($user instanceof User) {
-				$graduates = Contact::where([['is_this_year_gc', '=', 1], ['fellowship_id', '=', $user->fellowship_id]])->get();
+				$graduates = Contact::where([['is_this_year_gc', '=', 1], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
 				$count_graduates = count($graduates);
 				if($count_graduates == 0) {
-					return response()->json(['message' => 'empty graduates'], 404);
+					return response()->json(['graduates' => $graduates], 404);
 				}
 				return response()->json(['graduates' => $graduates], 200);
 			} else {

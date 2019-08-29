@@ -22,6 +22,8 @@ class Kernel extends ConsoleKernel
         'App\Console\commands\countMessages',
         'App\Console\commands\countMonthlySentMessage',
         'App\Console\commands\DashboardCommand',
+        'App\Console\commands\notifyRegistrationEndDate',
+        'App\Console\commands\DeleteExpiredSmsRegisteredMembers',
     ];
 
     /**
@@ -43,9 +45,13 @@ class Kernel extends ConsoleKernel
         $schedule->command('command:dashboardCommand')
                 ->hourly();
         $schedule->command('command:countMessage')
-                ->daily();
+                ->dailyAt('23:00');
         $schedule->command('command:countMonthlySentMessage')
                 ->monthlyOn(28, '00:00');
+        $schedule->command('command:registrationEndDate')
+                ->daily();
+        $schedule->command('command:deleteExpiredSmsRegisteredMembers')
+                ->daily();
         // $schedule->call(function () {
         //     DB::table('contacts')->whereDate('graduation_year', '<', date('Y-m-d'))->delete();
             // DB::table('post_graduates_contact')->whereDate('graduation_year', '<', date('Y-m-d'))->

@@ -19,6 +19,7 @@ class CreateContactEventsTable extends Migration
             $table->foreign('event_id')->references('id')->on('events')->onDelete('cascade');
             $table->integer('contact_id')->unsigned();
             $table->foreign('contact_id')->references('id')->on('contacts')->onDelete('cascade');
+            $table->boolean('through_sms')->default(false);
             $table->timestamps();
         });
     }

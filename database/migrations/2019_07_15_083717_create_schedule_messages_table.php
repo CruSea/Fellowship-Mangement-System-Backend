@@ -33,6 +33,7 @@ class CreateScheduleMessagesTable extends Migration
             $table->string('sent_to');
             $table->integer('get_fellowship_id')->unsigned()->nullable();
             $table->foreign('get_fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
+            $table->boolean('for_under_graduate')->default(true);
             $table->json('sent_by');
             $table->timestamps();
         });

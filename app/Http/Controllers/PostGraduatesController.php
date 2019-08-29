@@ -126,10 +126,10 @@ class PostGraduatesController extends Controller
     			return response()->json(['error' => 'token expired'], 401);
     		}
     		// $postGraduates = Contact::all();
-    		$postGradautes = Contact::where([['is_under_graduate', '=', 0], ['fellowship_id', '=', $user->fellowship_id]])->paginate(10);
+    		$postGradautes = Contact::where([['is_under_graduate', '=', 0], ['fellowship_id', '=', $user->fellowship_id]])->orderBy('id', 'desc')->paginate(10);
             $count = count($postGradautes);
             if($count == 0) {
-                return response()->json(['message' => 'post graduate not found'], 404);
+                return response()->json(['post_graduates' => $postGradautes], 200);
             }
 
     		return response()->json(['post_graduates' => $postGradautes], 200);

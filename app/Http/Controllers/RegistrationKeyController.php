@@ -94,15 +94,15 @@ class RegistrationKeyController extends Controller
 		try {
 			$user = JWTAuth::parseToken()->toUser();
 			if($user instanceof User) {
-				$registration_key = RegistrationKey::where('fellowship_id', '=', $user->fellowship_id)->paginate(10);
-				$count = $user->count();
+				$registration_key = RegistrationKey::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(10);
+				$count = $registration_key->count();
 				if($count > 0) {
 					for($i = 0; $i < $count; $i++) {
 						$registration_key[$i]->created_by = json_decode($registration_key[$i]->created_by);
 					}
 					return response()->json(['registration_key' => $registration_key], 200);
 				} else {
-					return response()->json(['error' => 'registration key is not found'], 200);
+					return response()->json(['registration_key' => $registration_key], 200);
 				}
 			} else {
     			return response()->json(['error' => 'token expired'], 401);

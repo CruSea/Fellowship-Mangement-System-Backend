@@ -24,6 +24,7 @@ class CreateSentMessagesTable extends Migration
             $table->foreign('sms_port_id')->references('id')->on('sms_ports')->onDelete('cascade');
             $table->integer('fellowship_id')->unsigned()->nullable();
             $table->foreign('fellowship_id')->references('id')->on('fellowships')->onDelete('cascade');
+            $table->boolean('is_removed')->default(false);
             $table->json('sent_by');
             $table->timestamps();
         });
