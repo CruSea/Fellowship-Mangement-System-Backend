@@ -36,14 +36,14 @@ class ContactController extends Controller
                 'full_name' => 'required|string|max:255',
                 'gender' => 'required|string|max:255',
                 'acadamic_department' => 'string|max:255',
-                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:9|max:13|unique:contacts',
+                'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|unique:contacts',
                 'team' => 'string|min:1|nullable',
                 'email' => 'email|max:255|unique:contacts|nullable',
                 'graduation_year' => 'required|string',
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 400);
+                return response()->json(['error' => 'validation error' , 'message' => $validator->messages()], 400);
             }
             $phone_number  = $request['phone'];
             $contact0 = Str::startsWith($request['phone'], '0');
@@ -94,7 +94,7 @@ class ContactController extends Controller
             $team = Team::where([['name', '=', $request['team']], ['fellowship_id', '=', $user->fellowship_id]])->first();
 
             if($request['team'] != null && !$team) {
-                return response()->json(['message' => 'team is not found', 'error' => 'please add '. $request['team']. ' team first before adding contact to '. $request['team']. ' team'], 404);
+                return response()->json(['message' => 'team is not found', 'error' => 'team is not found, please add '. $request['team']. ' team first before adding contact to '. $request['team']. ' team'], 404);
             }
 
             if($contact->save()) {
@@ -110,7 +110,7 @@ class ContactController extends Controller
                 return response()->json(['message' => 'contact added successfully'], 200);
                 
             }
-            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to save the contact'], 500);
+            return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'something went wrong, unable to save the contact'], 500);
         }catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

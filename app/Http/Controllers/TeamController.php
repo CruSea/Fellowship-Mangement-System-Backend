@@ -42,16 +42,14 @@ class TeamController extends Controller
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error', 'error' => $validator->messages()], 500);
+                return response()->json(['error' => 'validation error', 'message' => $validator->messages()], 400);
             }
             
             $fellowship_id = $user->fellowship_id;
             
-            $fellowship_team = Team::where('fellowship_id', '=', $fellowship_id)->first();
+            $fellowship_team = Team::where([['fellowship_id', '=', $fellowship_id], ['name', '=', $request['name']]])->exists();
             if($fellowship_team) {
-                if($fellowship_team->name == $request['name']) {
-                    return response()->json(['error' => 'team name has already been taken'], 400);
-                }
+                return response()->json(['error' => 'team name has already been taken'], 400);
             }
 
             $team->name = $request['name'];
@@ -61,7 +59,7 @@ class TeamController extends Controller
             if($team->save()) {
                 return response()->json(['message' => 'team added successfully'], 200);
             }
-            return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => 'team is not saved'], 500);
+            return response()->json(['message' => 'Ooops! somthing went wrong', 'error' => 'something went wrong, team is not saved'], 500);
         } catch(Exception $ex) {
             return response()->json(['message', 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }

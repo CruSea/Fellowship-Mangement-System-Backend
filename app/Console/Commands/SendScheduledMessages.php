@@ -101,9 +101,18 @@ class SendScheduledMessages extends Command
                                         json_encode($message_send_request));
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) {
+                                    $notification = new Notification();
+                                    $notification->notification = "daily periodic message has been sent for ". $dail->phone. " at ". Carbon::now();
+                                    $notification->save();
+                                    $notification->fellowship_id = $fellowship_id;
                                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                                         $send_message = $decoded_response->sent_message;
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! daily periodic message is not sent for ". $dail->phone. " at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                             if($daily->team_id != null) {
@@ -143,8 +152,17 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
 
                                 if($decoded_response) { 
+                                    $notification = new Notification();
+                                    $notification->notification = "daily periodic message has been sent for ". $team->name. " team at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! daily periodic message is not sent for ". $team->name. " team at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                             if($daily->fellowship_id != null) {
@@ -182,9 +200,17 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
 
                                 if($decoded_response) { 
-
+                                    $notification = new Notification();
+                                    $notification->notification = "daily periodic message has been sent for all fellowship members at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! daily periodic message is not sent for all fellowship members at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                             if($daily->event_id != null) {
@@ -217,8 +243,17 @@ class SendScheduledMessages extends Command
                                 json_encode($negarit_message_request));
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
+                                    $notification = new Notification();
+                                    $notification->notification = "daily periodic message has been sent for ". $event->event_name. " event at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! daily periodic message is not sent for ". $event->event_name. " event at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                         }
@@ -227,6 +262,7 @@ class SendScheduledMessages extends Command
                     if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($daily->sent_time))) == 0) {
                         $notification = new Notification();
                         $notification->notification = "daily scheduled '".$daily->message. "' message has expired. end date was ". $daily->end_date;
+                        $notification->fellowship_id = $fellowship_id;
                         $notification->save();
                     }
                 }
@@ -276,9 +312,18 @@ class SendScheduledMessages extends Command
                                         json_encode($message_send_request));
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
+                                    $notification = new Notification();
+                                    $notification->notification = "weekly periodic message has been sent for ". $weekly->phone." at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                                         $send_message = $decoded_response->sent_message;
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! weekly periodic message is not sent for ". $weekly->phone. " at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                             if($weekly->team_id != null) {
@@ -315,11 +360,18 @@ class SendScheduledMessages extends Command
                                 'api_request/sent_multiple_messages', 
                                 json_encode($negarit_message_request));
                                 $decoded_response = json_decode($negarit_response);
-
                                 if($decoded_response) { 
+                                    $notification->notification = "weekly periodic message has been sent for ". $team->name. " team at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
-                                } 
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! weekly periodic message is not sent for ". $team->name. " team at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
+                                }
                             }
                             if($weekly->fellowship_id != null) {
                                 $decoded_value = json_decode($weekly->sent_by);
@@ -355,9 +407,16 @@ class SendScheduledMessages extends Command
                                 json_encode($negarit_message_request));
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
-                                    
+                                    $notification->notification = "weekly periodic message has been sent for all fellowship members at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! weekly periodic message is not sent for all fellowship members at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
 
@@ -391,9 +450,16 @@ class SendScheduledMessages extends Command
                                 json_encode($negarit_message_request));
                                 $decoded_response = json_decode($negarit_response);
                                 if($decoded_response) { 
-
+                                    $notification->notification = "weekly periodic message has been sent for ". $event->event_name. " event at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! weekly periodic message is not sent for ". $event->event_name. " event at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                         }
@@ -403,6 +469,7 @@ class SendScheduledMessages extends Command
                     if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($weekly->sent_time))) == 0) {
                         $notification = new Notification();
                         $notification->notification = "weekly scheduled '".$weekly->message. "' message has expired. end date was ". $weekly->end_date;
+                        $notification->fellowship_id = $fellowship_id;
                         $notification->save();
                     } else {}
                 } 
@@ -453,9 +520,17 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
 
                                 if($decoded_response) { 
+                                    $notification->notification = "monthly periodic message has been sent for ". $monthly->phone. " at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
                                         $send_message = $decoded_response->sent_message;
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! monthly periodic message is not sent for ". $monthly->phone. " at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                             if($monthly->team_id != null) {
@@ -493,8 +568,16 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
                                     
                                 if($decoded_response) { 
+                                    $notification->notification = "monthly periodic message has been sent for ". $team->name. " team at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! monthly periodic message is not sent for ". $team->name. " team at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                             if($monthly->fellowship_id != null) {
@@ -532,8 +615,16 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
 
                                 if($decoded_response) { 
+                                    $notification->notification = "monthly periodic message has been sent for all fellowship members at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! monthly periodic message is not sent for all fellowship members at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                             if($monthly->event_id != null) {
@@ -566,8 +657,16 @@ class SendScheduledMessages extends Command
                                 $decoded_response = json_decode($negarit_response);
 
                                 if($decoded_response) { 
+                                    $notification->notification = "monthly periodic message has been sent for ". $event->event_name. " event at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                     if(isset($decoded_response->status)) {
                                     }
+                                } else {
+                                    $notification = new Notification();
+                                    $notification->notification = "Ooops! monthly periodic message is not sent for ". $event->event_name. " event at ". Carbon::now();
+                                    $notification->fellowship_id = $fellowship_id;
+                                    $notification->save();
                                 }
                             }
                         }
@@ -576,6 +675,7 @@ class SendScheduledMessages extends Command
                     if((Carbon::parse(date('H:i'))->diffInMinutes(Carbon::parse($monthly->sent_time))) == 0) {
                         $notification = new Notification();
                         $notification->notification = "monthly scheduled '".$monthly->message. "' message has expired. end date was ". $monthly->end_date;
+                        $notification->fellowship_id = $fellowship_id;
                         $notification->save();
                     }
                 } 

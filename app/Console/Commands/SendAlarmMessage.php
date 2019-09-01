@@ -13,6 +13,7 @@ use App\Fellowship;
 use App\Event;
 use App\ContactEvent;
 use App\Team;
+use App\Notification;
 use Carbon\Carbon;
 class SendAlarmMessage extends Command
 {
@@ -92,19 +93,19 @@ class SendAlarmMessage extends Command
                             json_encode($message_send_request));
                     $decoded_response = json_decode($negarit_response);
                     if($decoded_response) {
-                    if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
-                        $send_message = $decoded_response->sent_message;
-                        dd('message sent successfully s ');
-                        // return response()->json(['message' => 'message sent successfully',
-                        // 'sent message' => $send_message], 200);
+                         $notification = new Notification();
+                        $notification->notification = "scheduled message has been sent for ". $alarm->phone. " at ". Carbon::now();
+                        $notification->fellowship_id = $fellowship_id;
+                        $notification->save();
+                        if(isset($decoded_response->status) && isset($decoded_response->sent_message)) {
+                            $send_message = $decoded_response->sent_message;
+                        }
+                    } else {
+                        $notification = new Notification();
+                        $notification->notification = "Ooops! scheduled message is not sent for ". $alarm->phone. " at ". Carbon::now();
+                        $notification->fellowship_id = $fellowship_id;
+                        $notification->save();
                     }
-                    dd('message sent successfully d ');
-                    // dd('message not sent successfully '. $decoded_response);
-                    // return response()->json(['message' => "Ooops! something went wrong", 'error' => $decoded_response], 500);
-                    }
-                    dd('message is not sent');
-                // dd('message not not sent successfully '. $decoded_response);
-                // return response()->json(['sent message' => [], 'response' => $decoded_response], 500);
                 }
                 if($alarm->team_id != null) {
                                         // dd('team');
@@ -143,15 +144,19 @@ class SendAlarmMessage extends Command
                     $decoded_response = json_decode($negarit_response);
                     // dd('about here');
                     if($decoded_response) { 
+                         $notification = new Notification();
+                        $notification->notification = "scheduled message has been sent for ". $team->name. " team at ". Carbon::now();
+                        $notification->fellowship_id = $fellowship_id;
+                        $notification->save();
                         if(isset($decoded_response->status)) {
-                            dd('message sent to the team successfully ');
                         }
                         else {
-                            dd('message sent successfully to team 2 ');
                         }
-                        dd('message is not sent');
                     } else {
-                        dd('not sent');
+                        $notification = new Notification();
+                        $notification->notification = "Ooops! scheduled message is not sent for ". $team->name. " team at ". Carbon::now();
+                        $notification->fellowship_id = $fellowship_id;
+                        $notification->save();
                     } 
                 }
                 if($alarm->fellowship_id != null) {
@@ -189,17 +194,19 @@ class SendAlarmMessage extends Command
                     $decoded_response = json_decode($negarit_response);
 
                     if($decoded_response) { 
+                         $notification = new Notification();
+                        $notification->notification = "scheduled message has been sent for all fellowship members at ". Carbon::now();
+                        $notification->fellowship_id = $fellowship_id;
+                        $notification->save();
                         if(isset($decoded_response->status)) {
-                            dd('message sent to the fellowship successfully');
-                            // return response()->json(['response' => $decoded_response], 200);
                         }
                         else {
-                            dd('message sent to the fellowship successfully two');
-                            // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                         }
                     } else {
-                        dd('message sent to the team successfully three');
-                        // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
+                        $notification = new Notification();
+                        $notification->notification = "Ooops! scheduled message is not sent for all fellowship members at ". Carbon::now();
+                        $notification->fellowship_id = $fellowship_id;
+                        $notification->save();
                     }
                 }
                 if($alarm->event_id != null) {
@@ -231,17 +238,19 @@ class SendAlarmMessage extends Command
                     json_encode($negarit_message_request));
                     $decoded_response = json_decode($negarit_response);
                     if($decoded_response) { 
+                         $notification = new Notification();
+                        $notification->notification = "scheduled message has been sent for ". $event->event_name. " event at ". Carbon::now();
+                        $notification->fellowship_id = $fellowship_id;
+                        $notification->save();
                         if(isset($decoded_response->status)) {
-                            // dd('message sent to the event successfully');
-                            // return response()->json(['response' => $decoded_response], 200);
                         }
                         else {
-                            // dd('message sent to the team successfully two');
-                            // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
                         }
                     } else {
-                        // dd('message sent to the team successfully three');
-                        // return response()->json(['message' => 'Ooops! something went wrong', 'response' => $decoded_response], 500);
+                        $notification = new Notification();
+                        $notification->notification = "Ooops! scheduled message is not sent for ". $event->event_name. " event at ". Carbon::now();
+                        $notification->fellowship_id = $fellowship_id;
+                        $notification->save();
                     }
                 }
             }

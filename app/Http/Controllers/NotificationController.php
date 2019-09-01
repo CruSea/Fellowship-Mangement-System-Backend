@@ -32,6 +32,10 @@ class NotificationController extends Controller
     	try {
     		$user = JWTAuth::parseToken()->toUser();
     		if($user instanceof User) {
+                $array = array();
+                
+       //          $notifications = Notification::whereIn('id', $array)->paginate(10);
+       //          return response()->json(['notificatoins' => $notifications], 200);
     			$count_all_notification = Notification::where('fellowship_id', '=', $user->fellowship_id)->count();
                 $count_seen_notification = 0;
                 $seen_notification = SeenNotification::where('user_id', '=', $user->id)->first();
@@ -40,19 +44,23 @@ class NotificationController extends Controller
                 }
                 $count_unseen_notification = $count_all_notification - $count_seen_notification;
     			$is_removed = RemovedNotification::where('user_id', '=', $user->id)->exists();
-                $notifications = new Notification();
+                // $notifications = new Notification();
+                $un_removed_notification = Notification::where('fellowship_id', '=', $user->fellowship_id)->get();
+                foreach ($un_removed_notification as $noti) {
+                    array_push($array, $noti->id);
+                }
+
                 if($is_removed) {
                     $removed_notification_id = RemovedNotification::where('user_id', '=', $user->id)->get();
-                    $notifications = new Notification();
                     foreach ($removed_notification_id as $removed_id) {
-                        $notifications = Notification::where('id', '!=', $removed_id);
+                        $array = array_diff($array, array($removed_id->notification_id));
                     }
-
+                    
                 }
-                
-    			// $notifications = Notification::where('fellowship_id', '=', $user->fellowship_id)->orderBy('id', 'desc')->paginate(1000);
+                $notifications = Notification::whereIn('id', $array)->orderBy('id', 'desc')->paginate(10);
+
                 if($count_all_notification == 0) {
-                    return response()->json(['notifications' => $notifications->orderBy('id', 'desc')->paginate(10), 'count' => 0], 200);
+                    return response()->json(['notifications' => $notifications, 'count' => 0], 200);
                 }
     			return response()->json(['notifications' => $notifications, 'count' => $count_unseen_notification], 200);
     		} else {
@@ -68,15 +76,18 @@ class NotificationController extends Controller
     		if($user instanceof User) {
     			$notification = Notification::find($id);
     			if($notification instanceof Notification && $notification->fellowship_id == $user->fellowship_id) {
+                    $is_removed = RemovedNotification::where([['user_id', '=', $user->id], ['notification_id', '=', $id]])->exists();
+                    if($is_removed) {
+                        return response()->json(['message' => 'notification already removed'], 200);
+                    }
                     $remove_notification = new RemovedNotification();
                     $remove_notification->user_id = $user->id;
                     $remove_notification->notification_id = $notification->id;
-                    $remove_notification->save();
-    				// if($notification->delete()) {
-    				// 	return response()->json(['message' => 'notification removed successfully'], 200);
-    				// } else {
-    				// 	return response()->json(['message' => 'Ooosp! something went wrong', 'error' => 'notification is not deleted'], 500);
-    				// }
+                    if($remove_notification->save()) {
+                        return response()->json(['message' => 'notification removed successfully'], 200);
+                    }else {
+                        return response()->json(['error' => 'Ooops! something went wrong'], 500);
+                    }
     			} else {
     				return response()->json(['error' => 'notfication not found'], 404);
     			}
@@ -91,19 +102,10 @@ class NotificationController extends Controller
         try {
             $user = JWTAuth::parseToken()->toUser();
             if($user instanceof User) {
-                // $notifications = Notification::all();
-                // Notification::where([['is_seen', false], ['fellowship_id', '=', $user->fellowship_id]])
-                //     ->chunkById(100, function ($notifications) {
-                //         foreach ($notifications as $notification) {
-                //             Notification::where('id', $notification->id)
-                //                 ->update(['is_seen' => true]);
-                //         }
-                //     });
                 $count_unseen_notification = 0;
                 $count_notifications = Notification::where('fellowship_id', '=', $user->fellowship_id)->count();
                 $seen_notification = SeenNotification::where('user_id', '=', $user->id)->first();
                 if($seen_notification) {
-                    // $seen_notification->user_id = $user->id;
                     if($seen_notification->no_seen_notification < $count_notifications) {
                         $count_unseen_notification = $count_notifications - $seen_notification->no_seen_notification; 
                     }
@@ -115,17 +117,7 @@ class NotificationController extends Controller
                     $new_seen_notification->no_seen_notification = $count_notifications;
                     $new_seen_notification->save();
                 }
-
                 return response()->json(['message' => 'notification seen'], 200);
-                // $count = Notification::
-                // foreach ($notifications as $notification) {
-                //     $notification->is_seend = true;
-                //     $notification->update();
-                // }
-                // if($notification instanceof Notification) {
-                //     $notification->is_seen = true;
-                //     $notification->update();
-                // }
             } else {
                 return response()->json(['error' => 'token expired'], 401);
             }

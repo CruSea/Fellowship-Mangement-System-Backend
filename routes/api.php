@@ -34,6 +34,15 @@ Route::post('/sendMail', [
     'uses' => 'sendMailController@sendMail',
 ]);
 
+Route::group(['prefix' => 'super-admin'], function() {
+    Route::get('/users', [
+        'uses' => 'SuperAdminController@users_detail',
+    ]);
+    Route::get('/teams', [
+        'uses' => 'SuperAdminController@teams_detail',
+    ]);
+});
+
 Route::group(['prefix' => 'user'], function() {
     Route::post('/', [
         'uses' => 'UserController@store'
@@ -244,6 +253,7 @@ Route::get('/team-messages', [
 ]);
 Route::group(['prefix' => 'post-graduate-team-message'], function() {
     Route::post('/', [
+        // 'middleware' => 'cors',
         'uses' => 'MessageController@sendPostGraduateTeamMessage',
     ]);
     Route::get('/', [

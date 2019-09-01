@@ -36,7 +36,7 @@ class PostGraduatesController extends Controller
             ];
             $validator = Validator::make($request, $rule);
             if($validator->fails()) {
-                return response()->json(['message' => 'validation error' , 'error' => $validator->messages()], 500);
+                return response()->json(['error' => 'validation error' , 'message' => $validator->messages()], 500);
             }
             $phone_number  = $request['phone'];
             $contact0 = Str::startsWith($request['phone'], '0');
@@ -85,17 +85,17 @@ class PostGraduatesController extends Controller
             }
 
             if($postGraduate->save()) {
-                // if($contact->team_id != null) {
-                $contact_team = new ContactTeam();
-                $contact_team->team_id = $team->id;
-                $contact_team->contact_id = $postGraduate->id;
-                $contact_team->save();
-                // }
+                if($postGraduate->team_id != null) {
+                    $contact_team = new ContactTeam();
+                    $contact_team->team_id = $team->id;
+                    $contact_team->contact_id = $postGraduate->id;
+                    $contact_team->save();
+                }
                 return response()->json(['message' => 'contact added successfully'], 200);
                 
             }
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => 'unable to save the contact'], 500);
-        }catch(Exception $ex) {
+        } catch(Exception $ex) {
             return response()->json(['message' => 'Ooops! something went wrong', 'error' => $ex->getMessage()], 500);
         }
     }

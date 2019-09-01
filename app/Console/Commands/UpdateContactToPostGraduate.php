@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use App\Contact;
 use App\PostGraduate;
 use Carbon\Carbon;
+use App\Notification;
 class UpdateContactToPostGraduate extends Command
 {
     /**

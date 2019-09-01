@@ -16,7 +16,7 @@ class CreateRemovedNotificationsTable extends Migration
         Schema::create('removed_notifications', function (Blueprint $table) {
             $table->increments('id');
             $table->integer('user_id')->unsigned()->nullable();
-            $table->foreign('user_id')->references('id')->on('fellowships')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->integer('notification_id')->unsigned()->nullable();
             $table->foreign('notification_id')->references('id')->on('notifications')->onDelete('cascade');
             $table->timestamps();
